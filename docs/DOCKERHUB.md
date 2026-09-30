@@ -83,11 +83,15 @@ Every secret can be read from a file instead by appending `_FILE`, e.g.
 | `TRUNKCMS_REPO_PATH` | | Subdirectory of the repo holding the site (default: the repo root) |
 | `TRUNKCMS_BRANCH` | `main` | Branch to serve and commit to |
 | `TRUNKCMS_GITHUB_INSTALLATION_ID` | auto | Looked up from the repo if unset |
+| `TRUNKCMS_GITHUB_API_URL` | `https://api.github.com` | API base URL, for GitHub Enterprise Server |
+| `TRUNKCMS_GITHUB_WEB_URL` | `https://github.com` | Web base URL (OAuth, commit links), for GitHub Enterprise Server |
 | `TRUNKCMS_POLL_INTERVAL` | `30s` | `0` disables polling |
 | `TRUNKCMS_POLL_MODE` | `auto` | `background`, `lazy`, or `auto` (lazy on Lambda and Cloud Run) |
 | `TRUNKCMS_DATA_DIR` | `/tmp/trunkcms-$PORT` | Scratch space for snapshots and rendered files. Set this with a writable volume if the root filesystem is read-only |
+| `TRUNKCMS_CONTENT_DIR` | | Local mode: serve and edit this directory instead of GitHub |
+| `TRUNKCMS_DEV_USERS` | `dev-admin:admin,dev-editor:editor,dev-author:author` | Local mode logins, as `login:role` pairs |
 | `TRUNKCMS_LOG_JSON` | | Set to any value to log JSON |
-| `PORT` | `8080` | |
+| `PORT` | `8080` | Port to listen on |
 
 To rotate the session key, set `TRUNKCMS_SESSION_KEY` to a comma-separated list with the new key first.
 

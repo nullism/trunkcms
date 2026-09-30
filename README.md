@@ -57,25 +57,32 @@ See [deploy/kubernetes/trunkcms.yaml](deploy/kubernetes/trunkcms.yaml) for a Kub
 
 ## Configuration
 
-| Variable | Default | Notes |
-|---|---|---|
-| `TRUNKCMS_REPO` | | `owner/name`, `github.com/owner/name`, or a full URL |
-| `TRUNKCMS_REPO_PATH` | | Subdirectory holding the site, e.g. `blog1`. Default is the repo root |
-| `TRUNKCMS_BRANCH` | `main` | |
-| `TRUNKCMS_SITE_URL` | | The site's URL, e.g. `https://myblog.com`. Required for OAuth callbacks |
-| `TRUNKCMS_GITHUB_APP_ID` | | |
-| `TRUNKCMS_GITHUB_INSTALLATION_ID` | auto | Looked up from the repo if unset |
-| `TRUNKCMS_GITHUB_PRIVATE_KEY[_FILE]` | | App private key (PEM) |
-| `TRUNKCMS_GITHUB_CLIENT_ID`, `TRUNKCMS_GITHUB_CLIENT_SECRET[_FILE]` | | App OAuth credentials |
-| `TRUNKCMS_WEBHOOK_SECRET[_FILE]` | | Without it, changes arrive by polling only |
-| `TRUNKCMS_SESSION_KEY[_FILE]` | | base64 32-byte key; comma-separate to rotate (new key first) |
-| `TRUNKCMS_POLL_INTERVAL` | `30s` (`2s` local) | `0` disables polling |
-| `TRUNKCMS_POLL_MODE` | `auto` | `background`, `lazy`, or `auto` (lazy on Lambda/Cloud Run) |
-| `TRUNKCMS_DATA_DIR` | `$TMPDIR/trunkcms-$PORT` | Scratch space for snapshots and rendered files. trunkcms wipes its `trunkcms/` subdirectory at startup. |
-| `TRUNKCMS_CONTENT_DIR` | | Local mode: serve and edit a directory instead of GitHub |
-| `TRUNKCMS_DEV_USERS` | `dev-admin:admin,…` | Local mode logins, as `login:role` pairs |
-| `TRUNKCMS_LOG_JSON` | | Set to log JSON |
-| `PORT` | `8080` | |
+trunkcms runs in **GitHub mode** unless `TRUNKCMS_CONTENT_DIR` is set, which switches it to
+**local mode** and ignores the GitHub settings. Secrets marked † can also be read from a file:
+set `NAME_FILE` to the file's path instead of setting `NAME`.
+
+| Variable | Required | Default | Notes |
+|---|---|---|---|
+| `TRUNKCMS_REPO` | GitHub mode | | Content repo: `owner/name`, `github.com/owner/name`, or a full URL |
+| `TRUNKCMS_SITE_URL` | GitHub mode | `http://localhost:$PORT` (local) | The site's URL, e.g. `https://myblog.com`. Used for OAuth callbacks; `https://` makes session cookies Secure |
+| `TRUNKCMS_GITHUB_APP_ID` | GitHub mode | | GitHub App ID |
+| `TRUNKCMS_GITHUB_PRIVATE_KEY` † | GitHub mode | | App private key (RSA PEM) |
+| `TRUNKCMS_GITHUB_CLIENT_ID` | GitHub mode | | App OAuth client ID, for sign-in |
+| `TRUNKCMS_GITHUB_CLIENT_SECRET` † | GitHub mode | | App OAuth client secret |
+| `TRUNKCMS_SESSION_KEY` † | GitHub mode | random (local) | Base64 key that decodes to 32 bytes; signs session cookies. Comma-separate to rotate (new key first) |
+| `TRUNKCMS_WEBHOOK_SECRET` † | Recommended | | Verifies push webhooks. Without it, changes arrive by polling only |
+| `TRUNKCMS_REPO_PATH` | | repo root | Subdirectory holding the site, e.g. `blog1` |
+| `TRUNKCMS_BRANCH` | | `main` | Branch to serve and commit to |
+| `TRUNKCMS_GITHUB_INSTALLATION_ID` | | auto | Looked up from the repo if unset |
+| `TRUNKCMS_GITHUB_API_URL` | | `https://api.github.com` | API base URL, for GitHub Enterprise Server |
+| `TRUNKCMS_GITHUB_WEB_URL` | | `https://github.com` | Web base URL (OAuth, commit links), for GitHub Enterprise Server |
+| `TRUNKCMS_POLL_INTERVAL` | | `30s` (`2s` local) | How often to check for new commits. `0` disables polling |
+| `TRUNKCMS_POLL_MODE` | | `auto` | `background`, `lazy` (check on requests), or `auto` (lazy on Lambda/Cloud Run) |
+| `TRUNKCMS_DATA_DIR` | | `$TMPDIR/trunkcms-$PORT` | Scratch space for snapshots and rendered files. trunkcms wipes its `trunkcms/` subdirectory at startup |
+| `TRUNKCMS_CONTENT_DIR` | Local mode | | Serve and edit this directory instead of GitHub |
+| `TRUNKCMS_DEV_USERS` | | `dev-admin:admin,dev-editor:editor,dev-author:author` | Local mode logins, as `login:role` pairs (`admin`, `editor`, or `author`) |
+| `TRUNKCMS_LOG_JSON` | | | Set to any value to log JSON |
+| `PORT` | | `8080` | Port to listen on |
 
 ## Content repo layout
 
