@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="{{.Site.Config.Language}}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{if .Title}}{{.Title}} · {{end}}{{.Site.Config.Title}}</title>
+  {{with .Description}}<meta name="description" content="{{.}}">{{end}}
+  {{if .Draft}}<meta name="robots" content="noindex">{{end}}
+  <link rel="stylesheet" href="{{asset "style.css"}}">
+  {{if .Site.Config.Feeds.RSS}}<link rel="alternate" type="application/rss+xml" title="{{.Site.Config.Title}}" href="{{absURL "/index.xml"}}">{{end}}
+  {{if .Site.Config.Feeds.Atom}}<link rel="alternate" type="application/atom+xml" title="{{.Site.Config.Title}}" href="{{absURL "/atom.xml"}}">{{end}}
+</head>
+<body>
+  {{if .Draft}}<div class="draft-banner">Draft — only visible to signed-in editors</div>{{end}}
+  <header class="site-header">
+    <a class="site-title" href="/">{{.Site.Config.Title}}</a>
+    <nav>
+      {{range .Site.Config.Nav}}<a href="{{.URL}}">{{.Title}}</a>{{end}}
+    </nav>
+  </header>
+  <main>
+    {{template "main" .}}
+  </main>
+  <footer class="site-footer">
+    © {{year}} {{with .Site.Config.Author.Name}}{{.}}{{else}}{{.Site.Config.Title}}{{end}}
+    {{if .Site.Config.Feeds.RSS}} · <a href="/index.xml">RSS</a>{{end}}
+  </footer>
+</body>
+</html>

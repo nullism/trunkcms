@@ -1,0 +1,14 @@
+{{define "content"}}
+<h1>Sign in</h1>
+<p>Local mode has no GitHub login. Pick a user to act as:</p>
+<div class="cards">
+  {{range .Data.Users}}
+  <form method="post" action="/admin/login" class="card">
+    <input type="hidden" name="login" value="{{.Login}}">
+    <input type="hidden" name="next" value="{{$.Data.Next}}">
+    <strong>@{{.Login}}</strong> <span class="role">{{.Role}}</span>
+    <button>Sign in as @{{.Login}}</button>
+  </form>
+  {{end}}
+</div>
+{{end}}

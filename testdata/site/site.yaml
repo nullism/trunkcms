@@ -1,0 +1,14 @@
+title: Example Blog
+description: A sample content repo for trunkcms
+base_url: http://localhost:8080
+language: en
+author:
+  name: Example Author
+posts_per_page: 2
+permalink: /posts/:slug/
+nav:
+  - { title: About, url: /about/ }
+  - { title: Tags, url: /tags/ }
+feeds:
+  rss: true
+  atom: true

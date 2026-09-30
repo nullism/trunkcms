@@ -1,0 +1,54 @@
+{{define "content"}}
+<h1>Dashboard</h1>
+
+{{if .Data.PublicRepo}}
+<p class="flash warn"><strong>This content repo is public.</strong> Drafts and the users file can be read by anyone on GitHub. Make the repository private to keep them hidden.</p>
+{{end}}
+
+{{if not .Res.Site.HasConfig}}
+  {{if .Can "settings.edit" ""}}
+  <section class="panel">
+    <h2>Set up this site</h2>
+    <p>The repository has no <code>site.yaml</code> yet. Initializing commits a starter config, a first post, an About page, and your author profile.</p>
+    <form method="post" action="/admin/init" class="row">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <input type="hidden" name="base" value="{{.Res.SHA}}">
+      <input name="title" placeholder="Site title" value="My Blog">
+      <button class="primary">Initialize site</button>
+    </form>
+  </section>
+  {{else}}
+  <p>This site hasn't been set up yet. Ask an admin to initialize it.</p>
+  {{end}}
+{{end}}
+
+<section class="panel">
+  <h2>{{.Res.Site.Config.Title}}</h2>
+  <dl class="facts">
+    <dt>Commit</dt><dd>{{if .RepoURL}}<a href="{{.RepoURL}}/commit/{{.Res.SHA}}"><code>{{short .Res.SHA}}</code></a>{{else}}<code>{{short .Res.SHA}}</code>{{end}}</dd>
+    <dt>Built</dt><dd>{{ago .Res.BuiltAt}} in {{.Res.Duration}}</dd>
+    <dt>Last checked</dt><dd>{{if not .Data.Status.LastCheck.IsZero}}{{ago .Data.Status.LastCheck}}{{else}}—{{end}}</dd>
+    <dt>Posts</dt><dd>{{len .Res.Site.Posts}} ({{len .Res.Site.Published}} published)</dd>
+    <dt>Pages</dt><dd>{{len .Res.Site.Pages}}</dd>
+    {{with .Data.Disk}}<dt>Disk used</dt><dd>{{.}} <span class="muted">(snapshots + rendered files)</span></dd>{{end}}
+    {{with .RepoURL}}<dt>Repository</dt><dd><a href="{{.}}">{{.}}</a></dd>{{end}}
+  </dl>
+  {{if .CanAny "post.create"}}<p><a class="button primary" href="/admin/new?kind=post">New post</a></p>{{end}}
+</section>
+
+{{with .Data.Status.LastError}}
+<section class="panel">
+  <h2>Last sync error</h2>
+  <p class="flash err">{{.}}</p>
+  <p class="muted">The site keeps serving the last good build until this is fixed.</p>
+</section>
+{{end}}
+
+{{if and .Res.Site.Problems (.CanAny "page.edit")}}
+<section class="panel">
+  <h2>Content problems</h2>
+  <p class="muted">These files were skipped when building the site.</p>
+  <ul class="problems">{{range .Res.Site.Problems}}<li><code>{{.Path}}</code>: {{.Err}}</li>{{end}}</ul>
+</section>
+{{end}}
+{{end}}

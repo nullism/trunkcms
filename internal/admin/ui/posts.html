@@ -1,0 +1,26 @@
+{{define "content"}}
+<div class="head">
+  <h1>{{.Title}}</h1>
+  {{if .CanAny "post.create"}}<a class="button primary" href="/admin/new?kind=post">New post</a>{{end}}
+</div>
+<table class="list">
+  <thead><tr><th>Title</th><th>Status</th><th>Date</th><th>Author</th><th></th></tr></thead>
+  <tbody>
+  {{range .Data.Posts}}
+    <tr>
+      <td><a href="/admin/edit?path={{.Path}}">{{.Meta.Title}}</a></td>
+      <td><span class="status {{.Status}}">{{.Status}}</span></td>
+      <td>{{date .Date}}</td>
+      <td>{{with .Meta.Author}}@{{.}}{{else}}<span class="muted">—</span>{{end}}</td>
+      <td><a href="{{.URL}}" target="_blank" rel="noopener">View ↗</a></td>
+    </tr>
+  {{else}}
+    <tr><td colspan="5" class="muted">No posts yet.</td></tr>
+  {{end}}
+  </tbody>
+</table>
+{{with .Data.Problems}}
+<h2>Files with errors</h2>
+<ul class="problems">{{range .}}<li><code>{{.Path}}</code>: {{.Err}}</li>{{end}}</ul>
+{{end}}
+{{end}}

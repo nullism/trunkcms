@@ -1,0 +1,10 @@
+{{define "main"}}
+<section class="author">
+  {{with .Author.Avatar}}<img class="avatar" src="{{.}}" alt="" width="96" height="96">{{end}}
+  <h1>{{.Author.Name}}</h1>
+  <div class="content">{{.Author.Content}}</div>
+  {{with .Author.Links}}<p class="links">{{range .}}<a href="{{.URL}}" rel="me">{{.Title}}</a> {{end}}</p>{{end}}
+</section>
+<h2 class="list-title">Posts</h2>
+{{range .Posts}}{{template "post-summary" .}}{{else}}<p class="empty">No posts yet.</p>{{end}}
+{{end}}

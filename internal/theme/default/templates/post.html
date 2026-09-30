@@ -1,0 +1,7 @@
+{{define "main"}}
+<article class="post">
+  <h1>{{.Post.Meta.Title}}</h1>
+  {{template "byline" .Post}}
+  <div class="content">{{.Post.Content}}</div>
+</article>
+{{end}}

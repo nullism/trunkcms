@@ -1,0 +1,3 @@
+users:
+  dev-author: { role: author }
+  dev-editor: { role: editor }

@@ -1,0 +1,15 @@
+{{define "post-summary"}}
+<article class="post-summary">
+  <h2><a href="{{.URL}}">{{.Meta.Title}}</a></h2>
+  {{template "byline" .}}
+  {{with .Meta.Summary}}<p>{{.}}</p>{{end}}
+</article>
+{{end}}
+
+{{define "byline"}}
+<p class="byline">
+  <time datetime="{{date .Date "2006-01-02"}}">{{date .Date "January 2, 2006"}}</time>
+  {{with .AuthorName}} · by {{if $.AuthorURL}}<a href="{{$.AuthorURL}}">{{.}}</a>{{else}}{{.}}{{end}}{{end}}
+  {{range .Meta.Tags}} <a class="tag" href="{{tagURL .}}">#{{.}}</a>{{end}}
+</p>
+{{end}}

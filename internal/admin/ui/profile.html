@@ -1,0 +1,21 @@
+{{define "content"}}
+{{$f := .Data}}
+<div class="head">
+  <h1>Profile: @{{$f.Login}}</h1>
+  <a href="/authors/{{$f.Login}}/" target="_blank" rel="noopener">View public page ↗</a>
+</div>
+<form method="post" action="/admin/profile" class="fields narrow">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <input type="hidden" name="base" value="{{$f.Base}}">
+  <input type="hidden" name="login" value="{{$f.Login}}">
+  <label>Display name <input name="name" value="{{$f.Name}}"></label>
+  <label>Avatar URL <input name="avatar" value="{{$f.Avatar}}" placeholder="Defaults to your GitHub avatar"></label>
+  <label>Links, one per line: <code>Title | URL</code>
+    <textarea name="links" rows="4">{{$f.Links}}</textarea>
+  </label>
+  <label>Bio (Markdown)
+    <textarea name="bio" rows="8">{{$f.Bio}}</textarea>
+  </label>
+  <div class="actions"><button class="primary">Save profile</button></div>
+</form>
+{{end}}

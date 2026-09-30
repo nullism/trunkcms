@@ -1,0 +1,62 @@
+{{define "content"}}
+{{$f := .Data}}
+<div class="head">
+  <h1>{{.Title}}</h1>
+  {{with $f.URL}}<a href="{{.}}" target="_blank" rel="noopener">View on site ↗</a>{{end}}
+</div>
+<div class="editor">
+  <form method="post" action="/admin/save" enctype="multipart/form-data" data-preview novalidate class="fields">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <input type="hidden" name="kind" value="{{$f.Kind}}">
+    <input type="hidden" name="path" value="{{$f.Path}}">
+    <input type="hidden" name="base" value="{{$f.Base}}">
+    <input type="hidden" name="upload_prefix" value="{{$f.UploadPrefix}}">
+
+    <label>Title <input name="title" value="{{$f.Title}}" autofocus></label>
+
+    {{if eq $f.Kind "post"}}
+    <div class="grid">
+      <label>Date (UTC) <input type="datetime-local" name="date" value="{{$f.Date}}"></label>
+      <label>Slug <input name="slug" value="{{$f.Slug}}" placeholder="from title"></label>
+    </div>
+    <div class="grid">
+      <label>Tags <input name="tags" value="{{$f.Tags}}" placeholder="go, notes"></label>
+      <label>Author
+        {{if $f.AuthorLocked}}<input name="author" value="{{$f.Author}}" readonly>
+        {{else}}<input name="author" value="{{$f.Author}}" placeholder="GitHub username">{{end}}
+      </label>
+    </div>
+    <label>Summary <input name="summary" value="{{$f.Summary}}" placeholder="Optional, shown in lists"></label>
+    <label class="check"><input type="checkbox" name="draft" {{if $f.Draft}}checked{{end}}> Draft (only signed-in editors can see it)</label>
+    {{else if not $f.Path}}
+    <label>Slug <input name="slug" value="{{$f.Slug}}" placeholder="from title → /slug/"></label>
+    {{end}}
+
+    <label>Content (Markdown)
+      <textarea name="body" rows="22" spellcheck="true">{{$f.Body}}</textarea>
+    </label>
+
+    <label>Attach files <small class="muted">(saved with this commit; a Markdown link is inserted at the cursor)</small>
+      <input type="file" name="uploads" multiple data-prefix="{{$f.UploadPrefix}}" accept="image/*,.pdf,.mp4,.webm,.mp3">
+    </label>
+
+    <label>Commit message <input name="message" value="{{$f.Message}}" placeholder="Optional"></label>
+
+    <div class="actions">
+      <button class="primary">Save</button>
+      <button type="submit" data-preview-button formaction="/admin/preview" formtarget="preview"
+              formenctype="application/x-www-form-urlencoded">Refresh preview</button>
+    </div>
+  </form>
+  <iframe name="preview" title="Preview" class="preview" sandbox="allow-same-origin"></iframe>
+</div>
+
+{{if $f.Path}}
+<form method="post" action="/admin/delete" class="danger" data-confirm="Delete this {{$f.Kind}}? This commits a deletion to the repository.">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <input type="hidden" name="path" value="{{$f.Path}}">
+  <input type="hidden" name="base" value="{{$f.Base}}">
+  <button class="danger">Delete {{$f.Kind}}</button>
+</form>
+{{end}}
+{{end}}

@@ -1,0 +1,6 @@
+{{define "main"}}
+<h1 class="list-title">Tags</h1>
+<ul class="tag-list">
+  {{range .Tags}}<li><a href="{{tagURL .Name}}">#{{.Name}}</a> <span>({{.Count}})</span></li>{{else}}<li>No tags yet.</li>{{end}}
+</ul>
+{{end}}

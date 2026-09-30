@@ -1,0 +1,56 @@
+{{define "content"}}
+<h1>Users</h1>
+<p class="muted">People listed here sign in with GitHub but don't need access to the repository.
+Anyone who can push to the repository on GitHub is always an admin.</p>
+
+<table class="list">
+  <thead><tr><th>GitHub user</th><th>Role</th><th></th></tr></thead>
+  <tbody>
+  {{range .Data}}
+    <tr>
+      <td>@{{.Login}} {{if .ID}}<small class="muted">#{{.ID}}</small>{{end}}</td>
+      <td>
+        <form method="post" action="/admin/users" class="row">
+          <input type="hidden" name="csrf" value="{{$.CSRF}}">
+          <input type="hidden" name="base" value="{{$.Res.SHA}}">
+          <input type="hidden" name="action" value="update">
+          <input type="hidden" name="login" value="{{.Login}}">
+          <select name="role">
+            {{$role := .Role}}
+            {{range $r := list "author" "editor" "admin"}}<option value="{{$r}}" {{if eq $r $role}}selected{{end}}>{{$r}}</option>{{end}}
+          </select>
+          <button>Change</button>
+        </form>
+      </td>
+      <td>
+        <form method="post" action="/admin/users" data-confirm="Remove @{{.Login}}?">
+          <input type="hidden" name="csrf" value="{{$.CSRF}}">
+          <input type="hidden" name="base" value="{{$.Res.SHA}}">
+          <input type="hidden" name="action" value="remove">
+          <input type="hidden" name="login" value="{{.Login}}">
+          <button class="danger">Remove</button>
+        </form>
+        <a href="/admin/profile?login={{.Login}}">Profile</a>
+      </td>
+    </tr>
+  {{else}}
+    <tr><td colspan="3" class="muted">No users yet.</td></tr>
+  {{end}}
+  </tbody>
+</table>
+
+<h2>Add a user</h2>
+<form method="post" action="/admin/users" class="row">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <input type="hidden" name="base" value="{{.Res.SHA}}">
+  <input type="hidden" name="action" value="add">
+  <input name="login" placeholder="GitHub username">
+  <select name="role"><option>author</option><option>editor</option><option>admin</option></select>
+  <button class="primary">Add</button>
+</form>
+<dl class="facts roles">
+  <dt>author</dt><dd>Writes posts; edits only their own posts and profile.</dd>
+  <dt>editor</dt><dd>Edits all posts, pages and profiles.</dd>
+  <dt>admin</dt><dd>Everything, including settings and users.</dd>
+</dl>
+{{end}}

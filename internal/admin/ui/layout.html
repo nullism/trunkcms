@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Title}} · trunkcms</title>
+  <link rel="stylesheet" href="/admin/static/admin.css">
+  <script src="/admin/static/admin.js" defer></script>
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="/admin/">trunkcms</a>
+  {{if and .User .User.Role}}
+  <nav>
+    <a href="/admin/">Dashboard</a>
+    <a href="/admin/posts">{{if .Can "post.edit" ""}}Posts{{else}}My posts{{end}}</a>
+    {{if .CanAny "page.edit"}}<a href="/admin/pages">Pages</a>{{end}}
+    {{if .Can "settings.edit" ""}}<a href="/admin/settings">Settings</a>{{end}}
+    {{if .Can "users.manage" ""}}<a href="/admin/users">Users</a>{{end}}
+    <a href="/admin/profile">Profile</a>
+    <a href="/" target="_blank" rel="noopener">View site ↗</a>
+  </nav>
+  <form method="post" action="/admin/logout" class="who">
+    <span>@{{.User.Login}} <small class="role">{{.User.Role}}</small></span>
+    <button class="link">Sign out</button>
+  </form>
+  {{end}}
+</header>
+{{if .LocalDev}}<div class="devnote">Local mode: saves are written to the content directory, not GitHub.</div>{{end}}
+<main>
+  {{with .Flash}}<p class="flash ok">{{.}}</p>{{end}}
+  {{with .Error}}<p class="flash err">{{.}}</p>{{end}}
+  {{template "content" .}}
+</main>
+</body>
+</html>

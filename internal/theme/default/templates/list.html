@@ -1,0 +1,13 @@
+{{define "main"}}
+{{if .Tag}}<h1 class="list-title">Posts tagged #{{.Tag}}</h1>{{end}}
+{{range .Posts}}{{template "post-summary" .}}{{else}}
+<p class="empty">No posts yet.</p>
+{{end}}
+{{with .Pagination}}{{if or .Prev .Next}}
+<nav class="pagination">
+  {{with .Prev}}<a href="{{.}}">← Newer</a>{{end}}
+  <span>Page {{.Page}} of {{.Total}}</span>
+  {{with .Next}}<a href="{{.}}">Older →</a>{{end}}
+</nav>
+{{end}}{{end}}
+{{end}}

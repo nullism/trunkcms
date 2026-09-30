@@ -1,0 +1,5 @@
+.git
+public
+*.pem
+.env
+docs

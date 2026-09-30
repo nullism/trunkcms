@@ -1,0 +1,59 @@
+# Example: kubectl create secret generic trunkcms \
+#   --from-file=private-key=app.pem \
+#   --from-literal=client-secret=... --from-literal=webhook-secret=... \
+#   --from-literal=session-key="$(openssl rand -base64 32)"
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trunkcms
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: trunkcms }
+  template:
+    metadata:
+      labels: { app: trunkcms }
+    spec:
+      containers:
+        - name: trunkcms
+          image: docker.io/nullism/trunkcms:latest
+          ports: [{ containerPort: 8080 }]
+          env:
+            - { name: TRUNKCMS_REPO, value: nullism/myblog }
+            - { name: TRUNKCMS_SITE_URL, value: https://myblog.com }
+            - { name: TRUNKCMS_GITHUB_APP_ID, value: "123456" }
+            - { name: TRUNKCMS_GITHUB_CLIENT_ID, value: Iv1.replace-me }
+            - { name: TRUNKCMS_GITHUB_PRIVATE_KEY_FILE, value: /secrets/private-key }
+            - { name: TRUNKCMS_GITHUB_CLIENT_SECRET_FILE, value: /secrets/client-secret }
+            - { name: TRUNKCMS_WEBHOOK_SECRET_FILE, value: /secrets/webhook-secret }
+            - { name: TRUNKCMS_SESSION_KEY_FILE, value: /secrets/session-key }
+            - { name: TRUNKCMS_LOG_JSON, value: "1" }
+            - { name: TRUNKCMS_DATA_DIR, value: /data }
+            - { name: GOMEMLIMIT, value: 100MiB }
+          volumeMounts:
+            - { name: secrets, mountPath: /secrets, readOnly: true }
+            - { name: data, mountPath: /data }
+          securityContext:
+            readOnlyRootFilesystem: true
+          readinessProbe:
+            httpGet: { path: /readyz, port: 8080 }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { memory: 128Mi }
+      volumes:
+        - name: secrets
+          secret: { secretName: trunkcms }
+        # Snapshots and rendered files. Size it for about 2x the repo plus the rendered site.
+        - name: data
+          emptyDir: { sizeLimit: 2Gi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: trunkcms
+spec:
+  selector: { app: trunkcms }
+  ports: [{ port: 80, targetPort: 8080 }]

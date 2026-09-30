@@ -1,0 +1,61 @@
+{{define "content"}}
+{{$c := .Data.Config}}
+<h1>Settings</h1>
+<form method="post" action="/admin/settings" class="fields narrow">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <input type="hidden" name="base" value="{{.Res.SHA}}">
+
+  <fieldset><legend>Site</legend>
+    <label>Title <input name="title" value="{{$c.Title}}"></label>
+    <label>Description <input name="description" value="{{$c.Description}}"></label>
+    <div class="grid">
+      <label>Base URL <input name="base_url" value="{{$c.BaseURL}}" placeholder="https://myblog.com"></label>
+      <label>Language <input name="language" value="{{$c.Language}}"></label>
+    </div>
+    <div class="grid">
+      <label>Default author name <input name="author_name" value="{{$c.Author.Name}}"></label>
+      <label>Default author email <input name="author_email" value="{{$c.Author.Email}}"></label>
+    </div>
+  </fieldset>
+
+  <fieldset><legend>Posts</legend>
+    <div class="grid">
+      <label>Posts per page <input type="number" min="1" max="100" name="posts_per_page" value="{{$c.PostsPerPage}}"></label>
+      <label>Permalink <input name="permalink" value="{{$c.Permalink}}"> <small class="muted">:year :month :day :slug</small></label>
+    </div>
+    <label class="check"><input type="checkbox" name="rss" {{if $c.Feeds.RSS}}checked{{end}}> RSS feed (/index.xml)</label>
+    <label class="check"><input type="checkbox" name="atom" {{if $c.Feeds.Atom}}checked{{end}}> Atom feed (/atom.xml)</label>
+  </fieldset>
+
+  <fieldset><legend>Navigation</legend>
+    <label>One link per line: <code>Title | URL</code>
+      <textarea name="nav" rows="5">{{.Data.Nav}}</textarea>
+    </label>
+  </fieldset>
+
+  <fieldset><legend>Appearance</legend>
+    <div class="theme-picker">
+      <span class="label">Theme</span>
+      <div class="themes">
+        {{range .Data.Themes}}
+        <label class="theme-card">
+          <input type="radio" name="theme" value="{{.Dir}}" {{if eq .Dir $c.Theme.Name}}checked{{end}}>
+          {{if .Screenshot}}<img class="shot" src="/admin/theme-screenshot?theme={{.Dir}}&amp;v={{$.Res.SHA}}" alt="Screenshot of {{or .Info.Name .Dir}}" loading="lazy">{{else}}<span class="shot none">No screenshot</span>{{end}}
+          <span><strong>{{or .Info.Name .Dir}}</strong>{{with .Info.Version}} <span class="muted">{{.}}</span>{{end}}{{if eq .Dir $.Res.Renderer.Theme.Dir}} <span class="role">in use</span>{{end}}</span>
+          {{with .Info.Author}}<small class="muted">by {{.}}</small>{{end}}
+          {{with .Info.Description}}<small>{{.}}</small>{{end}}
+          {{with .Info.Homepage}}<small><a href="{{.}}" rel="noopener" target="_blank">Homepage</a></small>{{end}}
+          {{with .Err}}<small class="error">Can't be used: {{.}}</small>{{end}}
+        </label>
+        {{end}}
+      </div>
+      <small class="muted">Add themes as folders under <code>themes/</code> in the repo, with an optional <code>theme.yaml</code> and <code>screenshot.png</code>.
+      {{if .Res.Renderer.Theme.Customized}}This site also has overrides in <code>theme/</code>, applied on top of the selected theme.{{end}}</small>
+    </div>
+    <label class="check"><input type="checkbox" name="unsafe_html" {{if $c.Markdown.UnsafeHTML}}checked{{end}}> Allow raw HTML in Markdown (all editors are trusted)</label>
+  </fieldset>
+
+  <label>Commit message <input name="message" placeholder="Optional"></label>
+  <div class="actions"><button class="primary">Save settings</button></div>
+</form>
+{{end}}
