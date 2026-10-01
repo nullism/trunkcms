@@ -239,10 +239,11 @@ and all of them lead to the same `source.Sync()`:
    editor sees the change immediately.
 3. **Polling**: `GET /repos/{o}/{r}/commits/{branch}` with `If-None-Match`.
    A `304` response does **not** count against the rate limit. The default interval is 30s.
-   - On long-running platforms (k8s, ECS, Cloud Run with CPU always allocated), a background ticker does the polling.
-   - On request-driven platforms (Lambda, Cloud Run with CPU throttling), the check runs lazily on
-     each request when `now - lastCheck > interval`. It uses stale-while-revalidate: the current
-     site is served and the sync runs in the background, with singleflight so only one sync runs at a time.
+   The same check runs from two places, whichever comes first once `now - lastCheck > interval`:
+   a background timer, and each public request. This works the same whether the process runs
+   continuously or is frozen between requests and scaled to zero, so there's no per-platform mode.
+   Request-triggered checks use stale-while-revalidate: the current site is served and the sync runs
+   in the background, and only one check runs at a time.
 
 `POLL_INTERVAL=0` turns polling off for setups that only use webhooks and run a single replica.
 
@@ -325,7 +326,7 @@ request that isn't found in the public output, it checks the overlay, but only i
 
 The cookie is only checked when the public lookup misses, so the anonymous hot path is unchanged.
 List pages don't show drafts, even to editors. The admin post list is where drafts are found.
-Posts with a future `date` stay hidden until that time. The lazy/poll check also triggers a rebuild
+Posts with a future `date` stay hidden until that time. The poll check also triggers a rebuild
 when the next scheduled post's publish time passes, so scheduled posts work without cron.
 
 ---
@@ -397,7 +398,6 @@ writes it back out in a stable order, so diffs stay clean.
 | `TRUNKCMS_SESSION_KEY` | 32-byte base64, comma-list for rotation |
 | `TRUNKCMS_SITE_URL` | the site's URL; required. Used for the OAuth callback, secure cookies, and the initial `site.yaml base_url` |
 | `TRUNKCMS_POLL_INTERVAL` | default `30s`; `0` disables |
-| `TRUNKCMS_POLL_MODE` | `auto` / `background` / `lazy` (auto: `lazy` if `AWS_LAMBDA_FUNCTION_NAME` or `K_SERVICE` is set) |
 | `TRUNKCMS_CONTENT_DIR` | local mode: serve and edit a directory; saves write files, and dev logins come from `TRUNKCMS_DEV_USERS` |
 | `PORT` | default `8080` (Cloud Run convention) |
 
@@ -412,9 +412,9 @@ The engine is one static binary (`CGO_ENABLED=0`) in a `distroless/static` image
 | Platform | Notes |
 |---|---|
 | **Kubernetes** | Deployment + Service + Ingress. Readiness probe `/readyz` passes after the first build succeeds; liveness `/healthz`. Any number of replicas. |
-| **Cloud Run** | Same image. `min-instances=1` is recommended to avoid cold-start fetches. Works with CPU throttling (lazy polling). Cloud Run's filesystem is in memory, so the data dir counts against the memory limit there. |
+| **Cloud Run** | Same image. `min-instances=1` is recommended to avoid cold-start fetches. Works with CPU throttling and scale to zero. Cloud Run's filesystem is in memory, so the data dir counts against the memory limit there. |
 | **ECS/Fargate** | Same image; secrets come from the task definition. ALB health check at `/readyz`. |
-| **Lambda** | Same image with the **AWS Lambda Web Adapter** layer/extension, so there's no separate Lambda code path. Uses lazy polling. The data dir lives in `/tmp` (512 MB by default, configurable up to 10 GB). Use a Function URL or API Gateway. |
+| **Lambda** | Same image with the **AWS Lambda Web Adapter** layer/extension, so there's no separate Lambda code path. The data dir lives in `/tmp` (512 MB by default, configurable up to 10 GB). Use a Function URL or API Gateway. |
 
 Examples ship in `deploy/` (k8s manifests, Cloud Run YAML, ECS task def, Lambda Dockerfile/SAM snippet).
 
@@ -435,7 +435,7 @@ internal/config/               # env parsing, _FILE secrets, validation
 internal/github/               # thin client: app JWT, installation tokens, user OAuth,
                                #   tarball, commits(ETag), git data API, permission, webhook verify
 internal/source/               # Source interface {Snapshot(ctx) (fs.FS, sha)}; GitHubSource,
-                               #   DirSource; Syncer (poll/lazy/webhook, singleflight, swap)
+                               #   DirSource; Syncer (poll/webhook, singleflight, swap)
 internal/content/              # front matter parse/serialize, site.yaml schema, load & validate → Model
 internal/render/               # goldmark setup, templates, feeds, sitemap, pagination → Output
 internal/theme/default/        # embedded default theme (templates + CSS)
@@ -459,7 +459,7 @@ sync coordination are hand-written against the standard library.
    `trunkcms serve --dir ./testdata/site` and `trunkcms build --dir … --out ./public`
    (static export is almost free and useful for testing). Golden-file tests.
 2. **GitHub source.** App JWT → installation token, tarball → snapshot on disk, Syncer with
-   polling (background and lazy), webhook endpoint, atomic swap, `/readyz`.
+   polling (timer and per-request), webhook endpoint, atomic swap, `/readyz`.
 3. **Auth.** App OAuth login (identity only), encrypted cookie sessions, hybrid roles from `users.yaml`, CSRF.
 4. **Editor.** Post/page list, edit/create/delete, live preview, Git Data API commits,
    conflict detection with a single automatic rebase, read-your-writes sync.
@@ -549,7 +549,7 @@ just one convenient way to make commits.
 **Implemented:** the rendering pipeline (posts, bundles, pages, tags, author pages, RSS/Atom, sitemap,
 theme overrides, drafts and scheduled posts); the GitHub client (App auth, ETag head polling, tarball snapshots,
 Git Data API commits with a single automatic rebase and conflict detection, empty-repo bootstrap, OAuth, webhooks);
-the syncer (background, lazy, webhook, read-your-writes, last-good-build fallback); encrypted cookie
+the syncer (polling, webhook, read-your-writes, last-good-build fallback); encrypted cookie
 sessions; the capability policy; and the admin UI (dashboard, posts/pages CRUD, live preview, staged uploads,
 settings, users, profiles, site initialization). Local mode (`TRUNKCMS_CONTENT_DIR`) runs everything without GitHub.
 Tests cover content, policy, sessions, the syncer, the GitHub client against a fake API, and end-to-end HTTP flows.

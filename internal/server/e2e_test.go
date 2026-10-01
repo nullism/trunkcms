@@ -59,7 +59,7 @@ func newEnv(t *testing.T, fixture bool) *env {
 		copyDir(t, "../../testdata/site", dir)
 	}
 	store := source.NewDirStore(dir)
-	syncer, err := source.NewSyncer(store, t.TempDir(), 0, false)
+	syncer, err := source.NewSyncer(store, t.TempDir(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}

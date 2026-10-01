@@ -18,6 +18,7 @@ type memStore struct {
 	head      atomic.Value // string
 	files     atomic.Value // fstest.MapFS
 	snapshots atomic.Int32
+	heads     atomic.Int32
 }
 
 func newMemStore(sha string, files fstest.MapFS) *memStore {
@@ -28,6 +29,7 @@ func newMemStore(sha string, files fstest.MapFS) *memStore {
 
 func (m *memStore) set(sha string, files fstest.MapFS) { m.head.Store(sha); m.files.Store(files) }
 func (m *memStore) Head(context.Context) (string, error) {
+	m.heads.Add(1)
 	return m.head.Load().(string), nil
 }
 func (m *memStore) Snapshot(_ context.Context, _, dir string) error {
@@ -47,7 +49,7 @@ func (m *memStore) Commit(context.Context, CommitRequest) (string, error) {
 }
 
 func newSyncer(t *testing.T, store Store) *Syncer {
-	s, err := NewSyncer(store, t.TempDir(), 0, false)
+	s, err := NewSyncer(store, t.TempDir(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,6 +105,50 @@ func TestSyncerPublishesScheduledPosts(t *testing.T) {
 	if len(s.Current().Site.Published()) != 1 {
 		t.Fatal("scheduled post should be published once its time passes, without a new commit")
 	}
+}
+
+func TestSyncerPollsAndChecksOnRequest(t *testing.T) {
+	store := newMemStore("a", fstest.MapFS{"posts/x.md": post("X", "2026-01-01")})
+	s, err := NewSyncer(store, t.TempDir(), 100*time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Sync(context.Background())
+	waitFor := func(what string, ok func() bool) {
+		t.Helper()
+		for deadline := time.Now().Add(2 * time.Second); !ok(); time.Sleep(5 * time.Millisecond) {
+			if time.Now().After(deadline) {
+				t.Fatal("timed out waiting for " + what)
+			}
+		}
+	}
+
+	// Requests within the interval don't check again.
+	heads := store.heads.Load()
+	for range 10 {
+		s.MaybeSync()
+	}
+	if store.heads.Load() != heads {
+		t.Fatal("checked again before the interval passed")
+	}
+
+	// Once the interval passes, one request starts one check.
+	store.set("b", fstest.MapFS{"posts/x.md": post("X", "2026-01-01")})
+	time.Sleep(110 * time.Millisecond)
+	for range 10 {
+		s.MaybeSync()
+	}
+	waitFor("request-triggered sync", func() bool { return s.Current().SHA == "b" })
+	if n := store.heads.Load() - heads; n != 1 {
+		t.Fatalf("expected one check, got %d", n)
+	}
+
+	// Without requests, the poller picks up changes on its own.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go s.Run(ctx)
+	store.set("c", fstest.MapFS{"posts/x.md": post("X", "2026-01-01")})
+	waitFor("background poll", func() bool { return s.Current().SHA == "c" })
 }
 
 func TestSyncerCleansUpOldBuilds(t *testing.T) {

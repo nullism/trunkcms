@@ -85,7 +85,7 @@ func serve() error {
 	if err := os.RemoveAll(cfg.DataDir); err != nil {
 		return err
 	}
-	syncer, err := source.NewSyncer(store, cfg.DataDir, cfg.PollInterval, cfg.Lazy)
+	syncer, err := source.NewSyncer(store, cfg.DataDir, cfg.PollInterval)
 	if err != nil {
 		return err
 	}
@@ -137,7 +137,7 @@ func serve() error {
 	}
 	errc := make(chan error, 1)
 	go func() { errc <- srv.ListenAndServe() }()
-	slog.Info("listening", "addr", cfg.Addr, "site_url", cfg.SiteURL, "data_dir", cfg.DataDir, "lazy_sync", cfg.Lazy, "poll", cfg.PollInterval)
+	slog.Info("listening", "addr", cfg.Addr, "site_url", cfg.SiteURL, "data_dir", cfg.DataDir, "poll", cfg.PollInterval)
 
 	select {
 	case err := <-errc:

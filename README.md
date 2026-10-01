@@ -77,7 +77,6 @@ set `NAME_FILE` to the file's path instead of setting `NAME`.
 | `TRUNKCMS_GITHUB_API_URL` | | `https://api.github.com` | API base URL, for GitHub Enterprise Server |
 | `TRUNKCMS_GITHUB_WEB_URL` | | `https://github.com` | Web base URL (OAuth, commit links), for GitHub Enterprise Server |
 | `TRUNKCMS_POLL_INTERVAL` | | `30s` (`2s` local) | How often to check for new commits. `0` disables polling |
-| `TRUNKCMS_POLL_MODE` | | `auto` | `background`, `lazy` (check on requests), or `auto` (lazy on Lambda/Cloud Run) |
 | `TRUNKCMS_DATA_DIR` | | `$TMPDIR/trunkcms-$PORT` | Scratch space for snapshots and rendered files. trunkcms wipes its `trunkcms/` subdirectory at startup |
 | `TRUNKCMS_CONTENT_DIR` | Local mode | | Serve and edit this directory instead of GitHub |
 | `TRUNKCMS_DEV_USERS` | | `dev-admin:admin,dev-editor:editor,dev-author:author` | Local mode logins, as `login:role` pairs (`admin`, `editor`, or `author`) |

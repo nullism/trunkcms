@@ -25,7 +25,7 @@ type Status struct {
 }
 
 // Syncer keeps the current build.Result in step with the Store.
-// All triggers (webhook, poll, lazy check, read-your-writes) funnel into Sync.
+// All triggers (webhook, poll, request check, read-your-writes) funnel into Sync.
 //
 // Everything bulky lives under dataDir:
 //
@@ -34,22 +34,20 @@ type Status struct {
 type Syncer struct {
 	store    Store
 	interval time.Duration
-	lazy     bool
 	srcDir   string
 	objects  *render.Objects
 
-	mu          sync.Mutex // serializes syncs and garbage collection
-	cur         atomic.Pointer[build.Result]
-	prev        *build.Result // kept so in-flight requests on the old build still find their files
-	status      atomic.Pointer[Status]
-	lastCheck   atomic.Int64
-	lazyRunning atomic.Bool
+	mu        sync.Mutex // serializes syncs and garbage collection
+	cur       atomic.Pointer[build.Result]
+	prev      *build.Result // kept so in-flight requests on the old build still find their files
+	status    atomic.Pointer[Status]
+	lastCheck atomic.Int64
+	checking  atomic.Bool // a MaybeSync check is in flight
 }
 
-// NewSyncer creates a syncer that owns dataDir. interval 0 disables polling;
-// lazy means checks run on incoming requests instead of a background ticker.
-func NewSyncer(store Store, dataDir string, interval time.Duration, lazy bool) (*Syncer, error) {
-	s := &Syncer{store: store, interval: interval, lazy: lazy, srcDir: filepath.Join(dataDir, "src")}
+// NewSyncer creates a syncer that owns dataDir. interval 0 disables polling.
+func NewSyncer(store Store, dataDir string, interval time.Duration) (*Syncer, error) {
+	s := &Syncer{store: store, interval: interval, srcDir: filepath.Join(dataDir, "src")}
 	if err := os.MkdirAll(s.srcDir, 0o755); err != nil {
 		return nil, err
 	}
@@ -200,37 +198,47 @@ func (s *Syncer) fail(sha string, err error) {
 	})
 }
 
-// Run polls in the background until ctx is done (no-op in lazy mode or when disabled).
+// Run checks for changes every interval until ctx is done. Requests also check
+// (see MaybeSync), so this works the same whether the process runs continuously
+// or is frozen between requests and scaled to zero.
 func (s *Syncer) Run(ctx context.Context) {
-	if s.lazy || s.interval <= 0 {
+	if s.interval <= 0 {
 		return
 	}
-	t := time.NewTicker(s.interval)
+	t := time.NewTimer(s.interval)
 	defer t.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			s.Sync(ctx)
+			s.MaybeSync()
+			// Webhooks and requests also reset lastCheck, so wait for whatever is left of the interval.
+			next := time.Until(time.Unix(0, s.lastCheck.Load()).Add(s.interval))
+			if next <= 0 { // a check that started over an interval ago is still running
+				next = s.interval
+			}
+			t.Reset(next)
 		}
 	}
 }
 
-// MaybeSync is called on each request in lazy mode. It never blocks the
-// request: the current site is served while a stale check runs in the background.
+// MaybeSync starts a check if the last one is older than the interval. It is
+// called on every request and by Run. It never blocks: the current site is
+// served while the check runs in the background.
 func (s *Syncer) MaybeSync() {
-	if !s.lazy || s.interval <= 0 {
+	if s.interval <= 0 {
 		return
 	}
 	if time.Since(time.Unix(0, s.lastCheck.Load())) < s.interval {
 		return
 	}
-	if !s.lazyRunning.CompareAndSwap(false, true) {
+	if !s.checking.CompareAndSwap(false, true) {
 		return
 	}
+	s.lastCheck.Store(time.Now().UnixNano())
 	go func() {
-		defer s.lazyRunning.Store(false)
+		defer s.checking.Store(false)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()
 		s.Sync(ctx)

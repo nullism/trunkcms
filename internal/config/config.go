@@ -38,7 +38,6 @@ type Config struct {
 	SessionKeys  [][]byte
 	SiteURL      string
 	PollInterval time.Duration
-	Lazy         bool
 	Addr         string
 }
 
@@ -69,16 +68,6 @@ func FromEnv() (*Config, error) {
 		errs = append(errs, fmt.Errorf("TRUNKCMS_POLL_INTERVAL: %w", err))
 	}
 	c.PollInterval = poll
-	switch mode := envOr("TRUNKCMS_POLL_MODE", "auto"); mode {
-	case "lazy":
-		c.Lazy = true
-	case "background":
-	case "auto":
-		// Request-driven platforms freeze the CPU between requests, so check on requests.
-		c.Lazy = os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" || os.Getenv("K_SERVICE") != ""
-	default:
-		errs = append(errs, fmt.Errorf("TRUNKCMS_POLL_MODE: unknown mode %q", mode))
-	}
 
 	keys, err := secret("TRUNKCMS_SESSION_KEY")
 	if err != nil {
