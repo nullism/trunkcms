@@ -1,5 +1,7 @@
 # trunkcms
 
+[![CI](https://github.com/nullism/trunkcms/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/nullism/trunkcms/actions/workflows/ci.yml)
+
 A small, stateless blog engine in Go. Content lives in a GitHub repository. Editors
 sign in with GitHub, write Markdown in a web UI at `/admin`, and every save is a
 commit. Each running instance picks up new commits, rebuilds the site in memory,

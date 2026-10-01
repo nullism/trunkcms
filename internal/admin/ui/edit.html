@@ -32,9 +32,20 @@
     <label>Slug <input name="slug" value="{{$f.Slug}}" placeholder="from title → /slug/"></label>
     {{end}}
 
-    <label>Content (Markdown)
-      <textarea name="body" rows="22" spellcheck="true">{{$f.Body}}</textarea>
-    </label>
+    <div class="tabs" data-tabs>
+      <div class="tablist" role="tablist" aria-label="Content">
+        <button type="button" role="tab" id="tab-write" aria-controls="pane-write" aria-selected="true">Write</button>
+        <button type="button" role="tab" id="tab-preview" aria-controls="pane-preview" aria-selected="false" tabindex="-1">Preview</button>
+      </div>
+      <div class="pane" id="pane-write" role="tabpanel" aria-labelledby="tab-write">
+        <label><span class="pane-label">Content (Markdown)</span>
+          <textarea name="body" rows="22" spellcheck="true">{{$f.Body}}</textarea>
+        </label>
+      </div>
+      <div class="pane" id="pane-preview" role="tabpanel" aria-labelledby="tab-preview">
+        <iframe name="preview" title="Preview" class="preview" sandbox="allow-same-origin"></iframe>
+      </div>
+    </div>
 
     <label>Attach files <small class="muted">(saved with this commit; a Markdown link is inserted at the cursor)</small>
       <input type="file" name="uploads" multiple data-prefix="{{$f.UploadPrefix}}" accept="image/*,.pdf,.mp4,.webm,.mp3">
@@ -48,7 +59,6 @@
               formenctype="application/x-www-form-urlencoded">Refresh preview</button>
     </div>
   </form>
-  <iframe name="preview" title="Preview" class="preview" sandbox="allow-same-origin"></iframe>
 </div>
 
 {{if $f.Path}}

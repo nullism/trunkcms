@@ -25,6 +25,8 @@
     </div>
     <label class="check"><input type="checkbox" name="rss" {{if $c.Feeds.RSS}}checked{{end}}> RSS feed (/index.xml)</label>
     <label class="check"><input type="checkbox" name="atom" {{if $c.Feeds.Atom}}checked{{end}}> Atom feed (/atom.xml)</label>
+    <label class="check"><input type="checkbox" name="unsafe_html" {{if $c.Markdown.UnsafeHTML}}checked{{end}}> Allow raw HTML in posts and author profiles</label>
+    <small class="muted">Anyone who can write a post, including authors, could then add scripts that run with the access of whoever views it, admins included. Pages always allow raw HTML.</small>
   </fieldset>
 
   <fieldset><legend>Navigation</legend>
@@ -52,7 +54,6 @@
       <small class="muted">Add themes as folders under <code>themes/</code> in the repo, with an optional <code>theme.yaml</code> and <code>screenshot.png</code>.
       {{if .Res.Renderer.Theme.Customized}}This site also has overrides in <code>theme/</code>, applied on top of the selected theme.{{end}}</small>
     </div>
-    <label class="check"><input type="checkbox" name="unsafe_html" {{if $c.Markdown.UnsafeHTML}}checked{{end}}> Allow raw HTML in Markdown (all editors are trusted)</label>
   </fieldset>
 
   <label>Commit message <input name="message" placeholder="Optional"></label>

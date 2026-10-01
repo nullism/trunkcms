@@ -376,8 +376,10 @@ writes it back out in a stable order, so diffs stay clean.
 - **Paths**: editable paths are limited to `posts/`, `pages/`, `authors/`, `assets/`, `site.yaml`, and
   `.trunkcms/users.yaml` (the last two admin-only),
   after cleaning with `path.Clean`. `..`, absolute paths, and anything else are rejected.
-- **Markdown HTML**: raw HTML is off by default (goldmark's safe mode). `site.yaml: markdown.unsafe_html: true` turns it on,
-  since editors are trusted repo writers.
+- **Markdown HTML**: pages always render raw HTML, since only editors and admins can change them. Posts and
+  author profiles use goldmark's safe mode unless `site.yaml: markdown.unsafe_html: true`; authors write those
+  and may not have repo access, and the site shares an origin with `/admin`, so a script there would run with
+  the viewer's admin session.
 - **Limits**: request body size, upload size (default 10 MB), allowed upload MIME types,
   tarball total/entry size caps.
 - Security headers on admin pages (CSP without inline scripts, `X-Frame-Options: DENY`).

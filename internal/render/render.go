@@ -32,7 +32,8 @@ var pageTemplates = []string{"list", "post", "page", "author", "tags", "404"}
 type Renderer struct {
 	site   *content.Site
 	Theme  theme.Theme
-	md     goldmark.Markdown
+	md     goldmark.Markdown // posts and author profiles: raw HTML only if the site allows it
+	pageMD goldmark.Markdown // pages: raw HTML always, since only editors and admins can change them
 	tmpl   map[string]*template.Template
 	assets map[string]string     // theme static name → hashed URL
 	static map[string]staticFile // hashed URL → file
@@ -93,18 +94,8 @@ type Data struct {
 func New(site *content.Site, th theme.Theme) (*Renderer, error) {
 	r := &Renderer{site: site, Theme: th, tmpl: map[string]*template.Template{}, assets: map[string]string{}, static: map[string]staticFile{}}
 
-	rendererOpts := []goldmark.Option{
-		goldmark.WithExtensions(
-			extension.GFM, extension.Footnote, extension.Typographer,
-			// Classes rather than inline styles, so the theme's CSS decides the colors.
-			highlighting.NewHighlighting(highlighting.WithFormatOptions(chromahtml.WithClasses(true))),
-		),
-		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
-	}
-	if site.Config.Markdown.UnsafeHTML {
-		rendererOpts = append(rendererOpts, goldmark.WithRendererOptions(gmhtml.WithUnsafe()))
-	}
-	r.md = goldmark.New(rendererOpts...)
+	r.md = newMarkdown(site.Config.Markdown.UnsafeHTML)
+	r.pageMD = newMarkdown(true)
 
 	if err := r.loadStatic(th.FS); err != nil {
 		return nil, err
@@ -203,9 +194,32 @@ func (r *Renderer) loadTemplates(themeFS fs.FS) error {
 	return nil
 }
 
+func newMarkdown(rawHTML bool) goldmark.Markdown {
+	opts := []goldmark.Option{
+		goldmark.WithExtensions(
+			extension.GFM, extension.Footnote, extension.Typographer,
+			// Classes rather than inline styles, so the theme's CSS decides the colors.
+			highlighting.NewHighlighting(highlighting.WithFormatOptions(chromahtml.WithClasses(true))),
+		),
+		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
+	}
+	if rawHTML {
+		opts = append(opts, goldmark.WithRendererOptions(gmhtml.WithUnsafe()))
+	}
+	return goldmark.New(opts...)
+}
+
 func (r *Renderer) markdown(src []byte) (template.HTML, error) {
+	return convert(r.md, src)
+}
+
+func (r *Renderer) pageMarkdown(src []byte) (template.HTML, error) {
+	return convert(r.pageMD, src)
+}
+
+func convert(md goldmark.Markdown, src []byte) (template.HTML, error) {
 	var buf bytes.Buffer
-	if err := r.md.Convert(src, &buf); err != nil {
+	if err := md.Convert(src, &buf); err != nil {
 		return "", err
 	}
 	return template.HTML(buf.String()), nil
@@ -241,7 +255,7 @@ func (r *Renderer) RenderPost(v *PostView, draft bool) ([]byte, error) {
 
 // RenderPage renders a full static page.
 func (r *Renderer) RenderPage(p *content.Page) ([]byte, error) {
-	html, err := r.markdown(p.Body)
+	html, err := r.pageMarkdown(p.Body)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", p.Path, err)
 	}

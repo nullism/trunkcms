@@ -450,3 +450,36 @@ func TestThemeSelection(t *testing.T) {
 		t.Fatal("paper isn't shown as selected")
 	}
 }
+
+func TestRawHTML(t *testing.T) {
+	e := newEnv(t, true)
+	const raw = `<div class="raw">hi</div>`
+	write := func(name, body string) {
+		if err := os.WriteFile(filepath.Join(e.dir, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("pages/raw.md", "---\ntitle: Raw page\n---\n"+raw+"\n")
+	write("posts/2026-09-27-raw.md", "---\ntitle: Raw post\n---\n"+raw+"\n")
+	sync := func() {
+		if err := e.syncer.Sync(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	sync()
+
+	c := e.anon()
+	if _, body := c.get("/raw/"); !strings.Contains(body, raw) {
+		t.Fatal("page doesn't render raw HTML by default")
+	}
+	if _, body := c.get("/posts/raw/"); strings.Contains(body, raw) {
+		t.Fatal("post renders raw HTML without markdown.unsafe_html")
+	}
+
+	b, _ := os.ReadFile(filepath.Join(e.dir, "site.yaml"))
+	write("site.yaml", string(b)+"markdown:\n  unsafe_html: true\n")
+	sync()
+	if _, body := c.get("/posts/raw/"); !strings.Contains(body, raw) {
+		t.Fatal("post doesn't render raw HTML with markdown.unsafe_html")
+	}
+}

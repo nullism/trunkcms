@@ -40,7 +40,7 @@ type Config struct {
 		Name string `yaml:"name,omitempty"` // a directory under themes/; empty for the built-in default
 	} `yaml:"theme,omitempty"`
 	Markdown struct {
-		UnsafeHTML bool `yaml:"unsafe_html,omitempty"`
+		UnsafeHTML bool `yaml:"unsafe_html,omitempty"` // raw HTML in posts and author profiles; pages always allow it
 	} `yaml:"markdown,omitempty"`
 	// Extra keeps keys this version doesn't know about (e.g. for custom themes),
 	// so saving settings from the UI never drops them.
