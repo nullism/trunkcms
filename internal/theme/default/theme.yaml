@@ -2,3 +2,4 @@ name: Default
 description: The built-in trunkcms theme.
 author: trunkcms
 homepage: https://github.com/nullism/trunkcms
+license: MIT

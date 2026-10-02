@@ -129,3 +129,7 @@ Each instance reads and commits only inside its own directory. Things to know:
 ```sh
 go test -race ./...
 ```
+
+## License
+
+MIT. See [LICENSE](LICENSE).
