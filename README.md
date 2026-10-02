@@ -7,6 +7,8 @@ sign in with GitHub, write Markdown in a web UI at `/admin`, and every save is a
 commit. Each running instance picks up new commits, rebuilds the site in memory,
 and swaps it in. There's no database; GitHub is the only external service.
 
+Homepage: [trunkcms.nullism.com](https://trunkcms.nullism.com)
+
 See [docs/DESIGN.md](docs/DESIGN.md) for the full design.
 
 ## Try it locally (no GitHub needed)
@@ -36,6 +38,7 @@ go run ./cmd/trunkcms build -dir ./testdata/site -out ./public
    - Webhook URL: `https://myblog.com/admin/webhook`, with a random secret
    - Repository permissions: **Contents: read & write**. Subscribe to **Push** events.
    - Generate a private key and a client secret, then install the App on the content repo only.
+   - Under **Advanced**, make the App **public**. Otherwise GitHub shows a 404 to anyone but the App's owner when they try to sign in. Public only means other accounts can sign in through it. Access is still decided by repo permission and `users.yaml`.
 3. Run the image from Docker Hub ([`nullism/trunkcms`](https://hub.docker.com/r/nullism/trunkcms)):
 
 ```sh

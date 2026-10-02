@@ -509,6 +509,9 @@ offers an **"Initialize site"** button. That button commits a starter `site.yaml
 - Webhook URL: `https://myblog.com/admin/webhook`, plus a random webhook secret
 - Permissions: Contents **read & write**. Events: **push**
 - Generate a private key and a client secret, then **install** the App on `nullism/myblog` only.
+- Make the App **public** (Advanced → Make public). GitHub shows a 404 on its sign-in page to anyone outside
+  the owning account of a private App. Public only lets other accounts sign in. Roles still come from
+  repo permission and `users.yaml`.
 
 Stretch goal: `/admin/setup` uses GitHub's App *manifest flow* to do this with one click, then
 shows the resulting credentials to paste into the deployment's secrets. trunkcms is stateless and
