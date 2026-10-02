@@ -104,6 +104,7 @@ nav:
   - { title: About, url: /about/ }
 feeds: { rss: true, atom: true }
 theme: { name: paper }       # a themes/ dir; empty = the built-in theme
+search: { enabled: true }    # off unless set; new sites get it on (§4.2)
 ```
 
 An author profile (`authors/<login>.md`) is public content, rendered like a page:
@@ -267,7 +268,7 @@ fs.FS ──► load ──► Model ──► render ──► Output ──►
 - **Model**: `Site{Config, Posts (sorted), Pages, Tags map, Assets}`.
 - **render**: goldmark (GFM, footnotes, heading IDs, typographer) + chroma syntax
   highlighting (CSS classes, so the theme's stylesheet picks the colors), then `html/template` with the theme. Output includes index pagination,
-  post pages, tag pages, static pages, RSS/Atom, `sitemap.xml`, `robots.txt`, and 404.
+  post pages, tag pages, static pages, RSS/Atom, `sitemap.xml`, `robots.txt`, 404, and the search index (§4.2).
 - **Output**: an in-memory index `map[urlPath]*Entry{object, gzip, contentType, etag}`. Each
   rendered file is written to `objects/<sha256>` (plus `<sha256>.gz` for compressible types)
   in a content-addressed store. Identical content is stored once, so a rebuild only writes pages that changed.
@@ -328,6 +329,92 @@ The cookie is only checked when the public lookup misses, so the anonymous hot p
 List pages don't show drafts, even to editors. The admin post list is where drafts are found.
 Posts with a future `date` stay hidden until that time. The poll check also triggers a rebuild
 when the next scheduled post's publish time passes, so scheduled posts work without cron.
+
+### 4.2 Search
+
+Search runs in the browser against a JSON index written at build time, like the feeds. There is no
+search endpoint: the public side stays a lookup of prebuilt files, static exports get search too,
+and queries cost the server nothing.
+
+```yaml
+search:
+  enabled: true
+  pages: true                  # index pages as well as posts (default true)
+  stopwords: [because]         # added to the built-in list for `language`
+  min_kw_length: 2             # shortest word indexed (default 2)
+  keep: [go, ai, ui, js]       # always indexed, even if short or a stopword
+  title_boost: 1               # title match = this many best-possible body matches; 0 = off
+```
+
+Search is off unless `site.yaml` turns it on, so existing sites don't change. "Initialize site" turns
+it on for new ones. The Settings page has all six options, and the dashboard shows the index size.
+
+**What's indexed:** published posts (title ×1, tags ×3, summary ×2, body ×1) and, unless
+`pages: false`, pages (title ×1, body ×1). Titles get their weight at query time instead (see Ranking). Body text is the rendered HTML with tags stripped, so
+Markdown syntax and link URLs aren't indexed; code blocks are. **Drafts and scheduled posts are never
+indexed**: the index is public, and it's built from the same list as the feeds.
+
+**Words:** lowercased, NFKD-normalized with combining marks and apostrophes removed ("Café's" →
+`cafes`), then split on anything that isn't a letter or digit. Words shorter than `min_kw_length`
+and stopwords are dropped unless listed in `keep`. The built-in English list holds function words
+only. It leaves out short words that are often topics (go, ai, ui, os, js) and common page names
+(about). Other languages have no built-in list yet, so they rely on BM25 alone. `search.js`
+tokenizes queries with the same rules (`internal/search/tokenize.go` and `words()` must match).
+
+**Format** (`/search.json`, with the usual `max-age=60` and ETag). The URL is deliberately not
+content-hashed like theme assets: the index changes on every save, and a page cached from two builds
+back would point at an index that had already been garbage-collected.
+
+```json
+{"v": 1, "lang": "en", "title_boost": 1,
+ "docs":  [["/posts/hello/", "Hello", "2026-09-30", 412, "Summary"], ...],
+ "terms": {"hello": [0, 7, 3, 1], ...}}
+```
+
+`docs` holds URL, title, date (empty for pages), length (total weight, for BM25) and summary, so
+results render without fetching pages. Newest posts come first, then pages. Each term's postings are
+`[gap, weight, ...]`: doc indexes ascending, each stored as the gap from the previous one so gzip
+compresses them well. Weights are the word's count times its field weight.
+
+**Ranking:** BM25 (k1 = 1.2, b = 0.75), summed over query words. The last word also matches as a prefix
+while typing, at 0.7× and only its best match per doc. Ties go to the newer post. The index loads the
+first time the search box is focused.
+
+A query word found in a doc's title adds `title_boost × idf × (k1 + 1)`. That's `title_boost` times the
+most BM25 can ever give the word, since repeated words saturate toward `idf × (k1 + 1)`. That
+saturation is why titles don't get a heavier field weight: at ×10, a post titled "Docker is great"
+still loses to one that says "docker" 20 times. With the bonus, at the default of 1, a title match beats
+every post that only mentions the word in the body, however often, while a post matching *more* of the
+query's words can still win (`docker compose`). At 2, a title match on one word also outweighs matching
+an extra query word. The browser tokenizes titles from `docs` itself, so the bonus costs no index space.
+
+**Size**, measured on 300 real 1,000-word documents: about 530 KB raw, **160 KB gzipped**, with
+~11,000 distinct words. Stopword and length settings barely change this (at most ~12%), since
+most of the size is the long tail of rare words. That makes the settings about result quality, not
+size. Splitting the index into one file per first letter is the next step if sites get big enough
+to need it.
+
+**Themes** get the box from the `search` partial, which the default `base.html` includes. A theme
+that replaces `base.html` adds `{{template "search" .}}`, or builds its own UI from the
+`searchIndex` template function, which returns the index URL or `""` when search is off. Themes
+should never hard-code the index path.
+
+**Several languages (planned, additive only).** The `search:` keys stay flat. A future top-level
+`languages:` map gives per-language overrides for *any* `site.yaml` key, with the same shape as the
+top level: maps merge, plain values and lists replace, and tags fall back (`pt-BR` → `pt`).
+
+```yaml
+language: en                   # the top level is the default language
+languages:
+  fr:
+    title: Mon Blog
+    search: { stopwords: [parce, contre] }
+```
+
+Posts would get an optional `lang:` front matter key (default: `language`), permalinks a `:lang`
+token, and each language its own `/search.<lang>.json`, picked through `searchIndex`. File-name
+suffixes like `post.fr.md` are ruled out because they would change existing slugs. None of this
+changes today's files or the `v: 1` index format.
 
 ---
 
@@ -440,6 +527,7 @@ internal/source/               # Source interface {Snapshot(ctx) (fs.FS, sha)}; 
                                #   DirSource; Syncer (poll/webhook, singleflight, swap)
 internal/content/              # front matter parse/serialize, site.yaml schema, load & validate → Model
 internal/render/               # goldmark setup, templates, feeds, sitemap, pagination → Output
+internal/search/               # tokenizer, stopwords, JSON search index (§4.2)
 internal/theme/default/        # embedded default theme (templates + CSS)
 internal/server/               # public handler: lookup in Output, ETag/304, gzip; draft overlay for editors
 internal/policy/               # capabilities, role → capability sets, Can(user, cap, resource)
@@ -450,7 +538,7 @@ testdata/site/                 # fixture content repo
 ```
 
 **Dependencies (kept small):** only `github.com/yuin/goldmark` (+ `goldmark-highlighting`, `alecthomas/chroma`)
-and `gopkg.in/yaml.v3`. The GitHub client (App JWT, OAuth code exchange, about 12 endpoints), sessions, and
+`gopkg.in/yaml.v3`, and `golang.org/x/text` (Unicode normalization for search). The GitHub client (App JWT, OAuth code exchange, about 12 endpoints), sessions, and
 sync coordination are hand-written against the standard library.
 
 ---
@@ -478,7 +566,7 @@ sync and commit/conflict flows without the network.
 
 ## 11. Non-goals (v1)
 
-Comments, search (beyond client-side on a generated JSON index, maybe later), multi-repo
+Comments, server-side search (search is client-side, §4.2), multi-repo
 or multi-tenant, editing themes in the UI, PR-based review workflows, incremental builds,
 and non-GitHub forges.
 

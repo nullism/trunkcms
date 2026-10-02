@@ -29,6 +29,20 @@
     <small class="muted">Anyone who can write a post, including authors, could then add scripts that run with the access of whoever views it, admins included. Pages always allow raw HTML.</small>
   </fieldset>
 
+  <fieldset><legend>Search</legend>
+    <label class="check"><input type="checkbox" name="search" {{if $c.Search.Enabled}}checked{{end}}> Search box on the site</label>
+    <label class="check"><input type="checkbox" name="search_pages" {{if $c.Search.Pages}}checked{{end}}> Include pages, not just posts</label>
+    <small class="muted">Published posts are indexed into one file that visitors download the first time they search. Drafts and scheduled posts are never included.</small>
+    <div class="grid">
+      <label>Extra stopwords <input name="search_stopwords" value="{{join $c.Search.Stopwords ", "}}" placeholder="because, against"> <small class="muted">Not indexed, on top of the built-in list for the site's language</small></label>
+      <label>Always index <input name="search_keep" value="{{join $c.Search.Keep ", "}}" placeholder="go, ai, ui"> <small class="muted">Even if short or a stopword</small></label>
+    </div>
+    <div class="grid">
+      <label>Shortest word indexed <input type="number" min="1" max="10" name="search_min_length" value="{{or $c.Search.MinLength 2}}"></label>
+      <label>Title boost <input type="number" min="0" max="100" step="0.5" name="search_title_boost" value="{{$c.Search.TitleBoost}}"> <small class="muted">A title match is worth this many of the best body matches. At 1 or more, titles always win; 0 turns it off.</small></label>
+    </div>
+  </fieldset>
+
   <fieldset><legend>Navigation</legend>
     <label>One link per line: <code>Title | URL</code>
       <textarea name="nav" rows="5">{{.Data.Nav}}</textarea>

@@ -30,6 +30,7 @@
     <dt>Last checked</dt><dd>{{if not .Data.Status.LastCheck.IsZero}}{{ago .Data.Status.LastCheck}}{{else}}—{{end}}</dd>
     <dt>Posts</dt><dd>{{len .Res.Site.Posts}} ({{len .Res.Site.Published}} published)</dd>
     <dt>Pages</dt><dd>{{len .Res.Site.Pages}}</dd>
+    <dt>Search index</dt><dd>{{with .Res.Output.Search}}{{kb .Size}}{{if .GzipSize}} <span class="muted">({{kb .GzipSize}} gzipped)</span>{{end}} · {{.Docs}} documents, {{.Terms}} words{{else}}<span class="muted">Off</span>{{end}}</dd>
     {{with .Data.Disk}}<dt>Disk used</dt><dd>{{.}} <span class="muted">(snapshots + rendered files)</span></dd>{{end}}
     {{with .RepoURL}}<dt>Repository</dt><dd><a href="{{.}}">{{.}}</a></dd>{{end}}
   </dl>

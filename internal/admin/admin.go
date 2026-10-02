@@ -113,6 +113,8 @@ func (h *Handler) parseTemplates() error {
 		"ago":   func(t time.Time) string { return time.Since(t).Round(time.Second).String() + " ago" },
 		"date":  func(t time.Time) string { return t.Format("2006-01-02 15:04") },
 		"list":  func(s ...string) []string { return s },
+		"kb":    func(n int64) string { return fmt.Sprintf("%.1f KB", float64(n)/1024) },
+		"join":  strings.Join,
 	}
 	for _, p := range pages {
 		name := strings.TrimSuffix(strings.TrimPrefix(p, "ui/"), ".html")

@@ -132,3 +132,20 @@ func TestSafeFileName(t *testing.T) {
 		}
 	}
 }
+
+func TestSearchConfigDefaults(t *testing.T) {
+	c, err := ParseConfig([]byte("title: x\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Search.Enabled || !c.Search.Pages || c.Search.TitleBoost != DefaultTitleBoost {
+		t.Fatalf("defaults: %+v", c.Search)
+	}
+	// A partial search block keeps the other defaults.
+	if c, _ = ParseConfig([]byte("title: x\nsearch: {enabled: true, title_boost: 0}\n")); !c.Search.Enabled || !c.Search.Pages || c.Search.TitleBoost != 0 {
+		t.Fatalf("partial block: %+v", c.Search)
+	}
+	if _, err := ParseConfig([]byte("title: x\nsearch: {title_boost: -1}\n")); err == nil {
+		t.Fatal("negative title_boost should be rejected")
+	}
+}

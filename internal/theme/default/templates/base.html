@@ -17,6 +17,7 @@
     <nav>
       {{range .Site.Config.Nav}}<a href="{{.URL}}">{{.Title}}</a>{{end}}
     </nav>
+    {{template "search" .}}
   </header>
   <main>
     {{template "main" .}}

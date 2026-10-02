@@ -37,6 +37,7 @@ type Output struct {
 	Files    map[string]*Entry
 	Drafts   map[string]*DraftEntry
 	NotFound *Entry
+	Search   *SearchStats // nil when search is off
 }
 
 // Refs returns every object this output uses, for garbage collection.

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"encoding/json"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -398,6 +400,9 @@ func TestInitializeEmptyRepo(t *testing.T) {
 	if _, body := e.anon().get("/"); !strings.Contains(body, "Fresh") || !strings.Contains(body, "Hello, world") {
 		t.Fatal("initialized site not served")
 	}
+	if _, body := e.anon().get("/"); !strings.Contains(body, `class="site-search"`) {
+		t.Fatal("new sites should start with search on")
+	}
 }
 
 func TestThemeSelection(t *testing.T) {
@@ -481,5 +486,76 @@ func TestRawHTML(t *testing.T) {
 	sync()
 	if _, body := c.get("/posts/raw/"); !strings.Contains(body, raw) {
 		t.Fatal("post doesn't render raw HTML with markdown.unsafe_html")
+	}
+}
+
+var searchIndexRe = regexp.MustCompile(`data-index="([^"]+)"`)
+
+func TestSearchIndex(t *testing.T) {
+	e := newEnv(t, true)
+	c := e.anon()
+	if _, body := c.get("/"); strings.Contains(body, "site-search") {
+		t.Fatal("search box shown without search.enabled")
+	}
+	if _, body := e.as("dev-admin").get("/admin/"); !regexp.MustCompile(`Search index</dt><dd><span class="muted">Off`).MatchString(body) {
+		t.Fatal("dashboard should report search as off")
+	}
+
+	cfg, _ := os.ReadFile(filepath.Join(e.dir, "site.yaml"))
+	setSearch := func(yaml string) (docs []string, terms map[string][]int) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(e.dir, "site.yaml"), append(slices.Clone(cfg), yaml...), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := e.syncer.Sync(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+		_, home := c.get("/")
+		m := searchIndexRe.FindStringSubmatch(home)
+		if m == nil {
+			t.Fatalf("no search box on the home page:\n%s", home)
+		}
+		resp, body := c.get(m[1])
+		// Not immutable: the index changes with every save, at the same URL.
+		if resp.StatusCode != http.StatusOK || strings.Contains(resp.Header.Get("Cache-Control"), "immutable") || resp.Header.Get("ETag") == "" {
+			t.Fatalf("index: %d %q", resp.StatusCode, resp.Header.Get("Cache-Control"))
+		}
+		var ix struct {
+			Docs  [][]any
+			Terms map[string][]int
+		}
+		if err := json.Unmarshal([]byte(body), &ix); err != nil {
+			t.Fatal(err)
+		}
+		for _, d := range ix.Docs {
+			docs = append(docs, d[0].(string))
+		}
+		return docs, ix.Terms
+	}
+
+	docs, terms := setSearch("search:\n  enabled: true\n")
+	if !slices.Contains(docs, "/posts/hello-world/") || !slices.Contains(docs, "/about/") {
+		t.Fatalf("published post or page missing: %v", docs)
+	}
+	for _, hidden := range []string{"/posts/secret-draft/", "/posts/future-post/"} {
+		if slices.Contains(docs, hidden) {
+			t.Fatalf("hidden post %s is in the public index", hidden)
+		}
+	}
+	for _, w := range []string{"secret", "scheduled", "2099"} {
+		if _, ok := terms[w]; ok {
+			t.Fatalf("word %q from a hidden post is in the index", w)
+		}
+	}
+	if _, ok := terms["trunkcms"]; !ok {
+		t.Fatal("body text not indexed")
+	}
+	if _, body := e.as("dev-admin").get("/admin/"); !regexp.MustCompile(`Search index</dt><dd>[\d.]+ KB`).MatchString(body) {
+		t.Fatal("dashboard doesn't show the index size")
+	}
+
+	docs, _ = setSearch("search:\n  enabled: true\n  pages: false\n")
+	if slices.Contains(docs, "/about/") || !slices.Contains(docs, "/posts/hello-world/") {
+		t.Fatalf("pages: false should index posts only: %v", docs)
 	}
 }

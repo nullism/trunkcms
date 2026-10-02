@@ -102,6 +102,16 @@ themes/<name>/             optional selectable themes (theme.yaml, screenshot.pn
 theme/                     optional site-specific overrides, applied on top of the selected theme
 ```
 
+### Search
+
+Add `search: { enabled: true }` to `site.yaml`, or tick **Search box on the site** in Settings.
+New sites start with it on. Each build writes a JSON index of published posts (plus pages,
+unless `pages: false`), and the theme's search box downloads it the first time someone
+searches. Drafts and scheduled posts are never indexed. The dashboard shows the index size;
+expect roughly 150–300 KB gzipped for 300 posts. See [docs/DESIGN.md](docs/DESIGN.md) §4.2
+for stopwords, `keep`, `min_kw_length`, and `title_boost` (how strongly title matches
+outrank body text).
+
 ### Several sites in one repo
 
 Set `TRUNKCMS_REPO_PATH` to serve a subdirectory. For a repo with `blog1/` and `blog2/`,

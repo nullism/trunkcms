@@ -42,10 +42,26 @@ type Config struct {
 	Markdown struct {
 		UnsafeHTML bool `yaml:"unsafe_html,omitempty"` // raw HTML in posts and author profiles; pages always allow it
 	} `yaml:"markdown,omitempty"`
+	Search Search `yaml:"search"`
 	// Extra keeps keys this version doesn't know about (e.g. for custom themes),
 	// so saving settings from the UI never drops them.
 	Extra map[string]any `yaml:",inline"`
 }
+
+// Search configures the client-side search index. Off unless site.yaml turns it on.
+type Search struct {
+	Enabled   bool     `yaml:"enabled"`
+	Pages     bool     `yaml:"pages"`                   // index pages as well as posts
+	Stopwords []string `yaml:"stopwords,omitempty"`     // added to the built-in list for the site's language
+	MinLength int      `yaml:"min_kw_length,omitempty"` // shortest word indexed, in characters; 0 means 2
+	Keep      []string `yaml:"keep,omitempty"`          // always indexed, even if a stopword or too short
+	// TitleBoost is what a query word found in a title is worth, as a multiple
+	// of the best score any amount of body text can reach. At 1 or more, a
+	// title match outranks every post that only mentions the word. 0 turns it off.
+	TitleBoost float64 `yaml:"title_boost"`
+}
+
+const DefaultTitleBoost = 1
 
 func DefaultConfig() Config {
 	var c Config
@@ -55,6 +71,8 @@ func DefaultConfig() Config {
 	c.Permalink = "/posts/:slug/"
 	c.Feeds.RSS = true
 	c.Feeds.Atom = true
+	c.Search.Pages = true
+	c.Search.TitleBoost = DefaultTitleBoost
 	return c
 }
 
@@ -73,6 +91,9 @@ func ParseConfig(b []byte) (Config, error) {
 		return c, fmt.Errorf("%s: permalink must contain :slug", ConfigPath)
 	}
 	c.BaseURL = strings.TrimRight(c.BaseURL, "/")
+	if c.Search.TitleBoost < 0 {
+		return c, fmt.Errorf("%s: search.title_boost can't be negative", ConfigPath)
+	}
 	return c, nil
 }
 

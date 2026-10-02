@@ -1,0 +1,7 @@
+{{define "search"}}{{with searchIndex}}
+<form class="site-search" role="search" data-index="{{.}}" hidden>
+  <input type="search" name="q" placeholder="Search" aria-label="Search" autocomplete="off" spellcheck="false">
+  <div class="site-search-results" aria-live="polite" hidden></div>
+</form>
+<script src="{{asset "search.js"}}" defer></script>
+{{end}}{{end}}

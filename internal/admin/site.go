@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/nullism/trunkcms/internal/content"
 	"github.com/nullism/trunkcms/internal/policy"
@@ -43,6 +44,7 @@ func (h *Handler) initSite(c *req) {
 	cfg.Title = title
 	cfg.BaseURL = strings.TrimRight(h.SiteURL, "/")
 	cfg.Nav = []content.Link{{Title: "About", URL: "/about/"}}
+	cfg.Search.Enabled = true
 	cfgYAML, _ := cfg.Marshal()
 
 	now := time.Now().UTC()
@@ -116,6 +118,14 @@ func (h *Handler) saveSettings(c *req) {
 	cfg.Feeds.Atom = r.FormValue("atom") == "on"
 	cfg.Theme.Name = r.FormValue("theme")
 	cfg.Markdown.UnsafeHTML = r.FormValue("unsafe_html") == "on"
+	cfg.Search.Enabled = r.FormValue("search") == "on"
+	cfg.Search.Pages = r.FormValue("search_pages") == "on"
+	cfg.Search.Stopwords = parseWords(r.FormValue("search_stopwords"))
+	cfg.Search.Keep = parseWords(r.FormValue("search_keep"))
+	cfg.Search.MinLength, _ = strconv.Atoi(r.FormValue("search_min_length"))
+	if tb, err := strconv.ParseFloat(strings.TrimSpace(r.FormValue("search_title_boost")), 64); err == nil {
+		cfg.Search.TitleBoost = tb
+	}
 
 	fail := func(msg string) {
 		v := h.newView(c, "Settings", map[string]any{"Config": cfg, "Nav": r.FormValue("nav"), "Themes": theme.List(c.res.FS)})
@@ -145,6 +155,11 @@ func formatLinks(links []content.Link) string {
 		fmt.Fprintf(&b, "%s | %s\n", l.Title, l.URL)
 	}
 	return b.String()
+}
+
+// parseWords splits a comma- or space-separated word list.
+func parseWords(s string) []string {
+	return strings.FieldsFunc(s, func(r rune) bool { return r == ',' || unicode.IsSpace(r) })
 }
 
 func parseLinks(s string) []content.Link {

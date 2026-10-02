@@ -30,13 +30,14 @@ var pageTemplates = []string{"list", "post", "page", "author", "tags", "404"}
 
 // Renderer holds a parsed theme and Markdown pipeline for one site.
 type Renderer struct {
-	site   *content.Site
-	Theme  theme.Theme
-	md     goldmark.Markdown // posts and author profiles: raw HTML only if the site allows it
-	pageMD goldmark.Markdown // pages: raw HTML always, since only editors and admins can change them
-	tmpl   map[string]*template.Template
-	assets map[string]string     // theme static name → hashed URL
-	static map[string]staticFile // hashed URL → file
+	site      *content.Site
+	Theme     theme.Theme
+	md        goldmark.Markdown // posts and author profiles: raw HTML only if the site allows it
+	pageMD    goldmark.Markdown // pages: raw HTML always, since only editors and admins can change them
+	tmpl      map[string]*template.Template
+	assets    map[string]string     // theme static name → hashed URL
+	static    map[string]staticFile // hashed URL → file
+	searchURL string                // the search index URL, set by Build; "" if search is off
 }
 
 type staticFile struct {
@@ -140,9 +141,11 @@ func (r *Renderer) funcs() template.FuncMap {
 			return "", fmt.Errorf("theme asset %q not found", name)
 		},
 		"absURL": func(p string) string { return r.site.Config.BaseURL + p },
-		"date":   func(t time.Time, layout string) string { return t.Format(layout) },
-		"tagURL": TagURL,
-		"year":   func() int { return time.Now().Year() },
+		// searchIndex is the search index URL, or "" when search is off.
+		"searchIndex": func() string { return r.searchURL },
+		"date":        func(t time.Time, layout string) string { return t.Format(layout) },
+		"tagURL":      TagURL,
+		"year":        func() int { return time.Now().Year() },
 	}
 }
 
@@ -253,13 +256,26 @@ func (r *Renderer) RenderPost(v *PostView, draft bool) ([]byte, error) {
 	return r.execute("post", &Data{Title: v.Meta.Title, Description: v.Meta.Summary, URL: v.URL, Post: v, Draft: draft})
 }
 
-// RenderPage renders a full static page.
-func (r *Renderer) RenderPage(p *content.Page) ([]byte, error) {
+// PageView renders a page's Markdown.
+func (r *Renderer) PageView(p *content.Page) (*PageView, error) {
 	html, err := r.pageMarkdown(p.Body)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", p.Path, err)
 	}
-	return r.execute("page", &Data{Title: p.Meta.Title, URL: p.URL, Page: &PageView{Page: p, Content: html}})
+	return &PageView{Page: p, Content: html}, nil
+}
+
+// RenderPage renders a full static page.
+func (r *Renderer) RenderPage(p *content.Page) ([]byte, error) {
+	v, err := r.PageView(p)
+	if err != nil {
+		return nil, err
+	}
+	return r.renderPageView(v)
+}
+
+func (r *Renderer) renderPageView(v *PageView) ([]byte, error) {
+	return r.execute("page", &Data{Title: v.Meta.Title, URL: v.URL, Page: v})
 }
 
 // builder writes rendered files into the object store and indexes them.
@@ -312,6 +328,17 @@ func (r *Renderer) Build(snapshot fs.FS, objs *Objects) (*Output, error) {
 			published = append(published, v)
 		}
 	}
+	var pages []*PageView
+	for _, p := range s.Pages {
+		v, err := r.PageView(p)
+		if err != nil {
+			return nil, err
+		}
+		pages = append(pages, v)
+	}
+	if err := r.searchIndex(b, published, pages); err != nil {
+		return nil, fmt.Errorf("search index: %w", err)
+	}
 
 	// Home page with pagination.
 	per := s.Config.PostsPerPage
@@ -359,12 +386,12 @@ func (r *Renderer) Build(snapshot fs.FS, objs *Objects) (*Output, error) {
 		}
 	}
 
-	for _, p := range s.Pages {
-		body, err := r.RenderPage(p)
+	for _, v := range pages {
+		body, err := r.renderPageView(v)
 		if err != nil {
 			return nil, err
 		}
-		if err := b.bytes(p.URL, body, htmlType); err != nil {
+		if err := b.bytes(v.URL, body, htmlType); err != nil {
 			return nil, err
 		}
 	}
