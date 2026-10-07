@@ -38,6 +38,10 @@ type Renderer struct {
 	assets    map[string]string     // theme static name → hashed URL
 	static    map[string]staticFile // hashed URL → file
 	searchURL string                // the search index URL, set by Build; "" if search is off
+
+	// AdminBar adds the admin bar loader to built pages. New sets it from
+	// site.yaml; static exports turn it off, since they have no /admin.
+	AdminBar bool
 }
 
 type staticFile struct {
@@ -94,6 +98,7 @@ type Data struct {
 // New parses the theme and prepares Markdown rendering.
 func New(site *content.Site, th theme.Theme) (*Renderer, error) {
 	r := &Renderer{site: site, Theme: th, tmpl: map[string]*template.Template{}, assets: map[string]string{}, static: map[string]staticFile{}}
+	r.AdminBar = site.Config.AdminBar
 
 	r.md = newMarkdown(site.Config.Markdown.UnsafeHTML)
 	r.pageMD = newMarkdown(true)
@@ -238,6 +243,31 @@ func (r *Renderer) execute(name string, d *Data) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// AdminBarLoader loads the admin bar, but only in browsers holding the
+// editor hint cookie, so anonymous visitors never make the extra request.
+// The cookie only says "worth asking"; /admin/bar checks the real session.
+const AdminBarLoader = `<script>if(/(^|;\s*)trunkcms_editor=/.test(document.cookie))document.head.appendChild(Object.assign(document.createElement("script"),{src:"/admin/static/bar.js"}))</script>`
+
+// withBar inserts the admin bar loader before </body>. It's applied to built
+// pages only, never to editor previews.
+func (r *Renderer) withBar(body []byte) []byte {
+	if !r.AdminBar {
+		return body
+	}
+	i := bytes.LastIndex(body, []byte("</body>"))
+	if i < 0 {
+		i = bytes.LastIndex(body, []byte("</BODY>"))
+	}
+	if i < 0 {
+		i = len(body)
+	}
+	out := make([]byte, 0, len(body)+len(AdminBarLoader)+1)
+	out = append(out, body[:i]...)
+	out = append(out, AdminBarLoader...)
+	out = append(out, '\n')
+	return append(out, body[i:]...)
+}
+
 // PostView renders a post's Markdown and resolves its author.
 func (r *Renderer) PostView(p *content.Post) (*PostView, error) {
 	html, err := r.markdown(p.Body)
@@ -374,7 +404,7 @@ func (r *Renderer) Build(snapshot fs.FS, objs *Objects) (*Output, error) {
 		if err != nil {
 			return nil, err
 		}
-		e, err := objs.PutBytes(body, htmlType)
+		e, err := objs.PutBytes(r.withBar(body), htmlType)
 		if err != nil {
 			return nil, err
 		}
@@ -391,7 +421,7 @@ func (r *Renderer) Build(snapshot fs.FS, objs *Objects) (*Output, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := b.bytes(v.URL, body, htmlType); err != nil {
+		if err := b.bytes(v.URL, r.withBar(body), htmlType); err != nil {
 			return nil, err
 		}
 	}
@@ -477,7 +507,7 @@ func (r *Renderer) Build(snapshot fs.FS, objs *Objects) (*Output, error) {
 	if err != nil {
 		return nil, err
 	}
-	if out.NotFound, err = objs.PutBytes(body, htmlType); err != nil {
+	if out.NotFound, err = objs.PutBytes(r.withBar(body), htmlType); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -488,7 +518,7 @@ func (r *Renderer) emit(b *builder, tmpl string, d *Data) error {
 	if err != nil {
 		return err
 	}
-	return b.bytes(d.URL, body, htmlType)
+	return b.bytes(d.URL, r.withBar(body), htmlType)
 }
 
 func (r *Renderer) copyBundle(b *builder, snapshot fs.FS, p *content.Post) error {

@@ -288,6 +288,25 @@ func (s *Site) PostByPath(p string) *Post {
 	return nil
 }
 
+// PostByURL finds a post, hidden or not, by its URL.
+func (s *Site) PostByURL(url string) *Post {
+	for _, post := range s.Posts {
+		if post.URL == url {
+			return post
+		}
+	}
+	return nil
+}
+
+func (s *Site) PageByURL(url string) *Page {
+	for _, page := range s.Pages {
+		if page.URL == url {
+			return page
+		}
+	}
+	return nil
+}
+
 func (s *Site) PageByPath(p string) *Page {
 	for _, page := range s.Pages {
 		if page.Path == p {

@@ -559,3 +559,88 @@ func TestSearchIndex(t *testing.T) {
 		t.Fatalf("pages: false should index posts only: %v", docs)
 	}
 }
+
+func TestAdminBar(t *testing.T) {
+	e := newEnv(t, true)
+	const loader = "/admin/static/bar.js"
+	for _, p := range []string{"/", "/posts/hello-world/", "/about/", "/tags/", "/authors/dev-author/", "/nope/"} {
+		if _, body := e.anon().get(p); !strings.Contains(body, loader) || !strings.Contains(body, "trunkcms_editor=") {
+			t.Errorf("%s: no admin bar loader", p)
+		}
+	}
+	if _, body := e.anon().get("/index.xml"); strings.Contains(body, loader) {
+		t.Error("loader leaked into the feed")
+	}
+	if resp, body := e.anon().get(loader); resp.StatusCode != 200 || !strings.Contains(body, "/admin/bar") {
+		t.Fatalf("bar.js: %d", resp.StatusCode)
+	}
+
+	// Login sets a readable hint cookie next to the HttpOnly session; logout clears both.
+	c := e.anon()
+	resp, err := c.PostForm(e.srv.URL+"/admin/login", url.Values{"login": {"dev-author"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var hint *http.Cookie
+	for _, ck := range resp.Cookies() {
+		if ck.Name == "trunkcms_editor" {
+			hint = ck
+		}
+	}
+	if hint == nil || hint.HttpOnly || hint.MaxAge <= 0 {
+		t.Fatalf("login should set a readable hint cookie: %+v", hint)
+	}
+
+	type info struct{ Login, Role, Edit, EditLabel, Status, New string }
+	bar := func(c *client, path string) (int, info) {
+		t.Helper()
+		resp, body := c.get("/admin/bar?path=" + url.QueryEscape(path))
+		var i info
+		json.Unmarshal([]byte(body), &i)
+		return resp.StatusCode, i
+	}
+	if code, _ := bar(e.anon(), "/"); code != http.StatusUnauthorized {
+		t.Fatalf("anonymous bar: %d", code)
+	}
+	if code, i := bar(c, "/posts/secret-draft/"); code != 200 || i.Login != "dev-author" ||
+		i.Status != "Draft" || !strings.Contains(i.Edit, "secret-draft") || i.New == "" {
+		t.Fatalf("author on own draft: %d %+v", code, i)
+	}
+	if _, i := bar(c, "/posts/future-post"); i.Status != "Scheduled" {
+		t.Fatalf("scheduled post without trailing slash: %+v", i)
+	}
+	if _, i := bar(c, "/about/"); i.Edit != "" {
+		t.Fatalf("authors can't edit pages: %+v", i)
+	}
+	if _, i := bar(c, "/authors/dev-author/"); i.Edit != "/admin/profile?login=dev-author" {
+		t.Fatalf("own profile: %+v", i)
+	}
+	if _, i := bar(e.as("other-author"), "/posts/secret-draft/"); i.Edit != "" {
+		t.Fatalf("other author got an edit link: %+v", i)
+	}
+	if _, i := bar(e.as("dev-editor"), "/about/"); i.Edit != "/admin/edit?path=pages%2Fabout.md" || i.EditLabel != "Edit page" {
+		t.Fatalf("editor on a page: %+v", i)
+	}
+
+	resp, _ = c.post("/admin/logout", nil)
+	cleared := false
+	for _, ck := range resp.Cookies() {
+		if ck.Name == "trunkcms_editor" && ck.MaxAge < 0 {
+			cleared = true
+		}
+	}
+	if !cleared {
+		t.Fatal("logout should clear the hint cookie")
+	}
+
+	b, _ := os.ReadFile(filepath.Join(e.dir, "site.yaml"))
+	if err := os.WriteFile(filepath.Join(e.dir, "site.yaml"), append(b, "admin_bar: false\n"...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.syncer.Sync(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, body := e.anon().get("/"); strings.Contains(body, loader) {
+		t.Fatal("admin_bar: false still injects the loader")
+	}
+}

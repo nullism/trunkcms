@@ -105,6 +105,7 @@ nav:
 feeds: { rss: true, atom: true }
 theme: { name: paper }       # a themes/ dir; empty = the built-in theme
 search: { enabled: true }    # off unless set; new sites get it on (§4.2)
+admin_bar: true              # default; false hides the edit bar on public pages (§5)
 ```
 
 An author profile (`authors/<login>.md`) is public content, rendered like a page:
@@ -441,11 +442,23 @@ committed together with the post in a single atomic commit, so history never has
 | `GET/POST /admin/settings` | Form generated from the `site.yaml` schema (admin) |
 | `GET/POST /admin/users` | Add/remove users and change roles; the GitHub ID is looked up automatically (admin) |
 | `GET/POST /admin/profile` | Edit your own `authors/<login>.md` (name, avatar, links, bio) |
+| `GET /admin/bar?path=…` | What the admin bar offers on a public page (JSON; 401 when signed out) |
 | `GET /admin/login`, `/admin/callback`, `POST /admin/logout` | GitHub App OAuth |
 | `POST /admin/webhook` | Push webhook (HMAC-verified, not session-authenticated) |
 
 The UI works with **front matter as structured fields** (title, date, tags, draft) and
 writes it back out in a stable order, so diffs stay clean.
+
+**Admin bar.** Signed-in users get a floating bar on public pages with an edit link for the page
+they're on. Public pages are prebuilt and cached (`public, max-age=60`), so the bar can't be rendered
+per user. Instead, every built HTML page gets a one-line inline loader before `</body>`, independent
+of the theme. It loads `/admin/static/bar.js` only if the `trunkcms_editor` cookie is present. That
+cookie is set and cleared together with the session, but it's readable by scripts and holds nothing
+secret. It only means "worth asking". `bar.js` then calls `/admin/bar?path=…`, which checks the real
+session, finds the post, page, or author profile at that URL, and returns the links that the user's
+role allows. A 401 clears the hint. Anonymous visitors make no extra requests, and the cached HTML
+is the same for everyone. The bar renders in a closed shadow root, so it and the theme can't style each
+other. It isn't added to editor previews or static exports. `site.yaml: admin_bar: false` turns it off.
 
 ---
 
@@ -457,6 +470,8 @@ writes it back out in a stable order, so diffs stay clean.
   Cookie settings: `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`. Because it's scoped to the whole site,
   the public handler can use it to unlock draft URLs (§4). Sessions last 7 days by default. The role is
   **not** stored in the cookie. It is looked up on each request from the snapshot and the cached repo permission.
+  A second cookie, `trunkcms_editor=1`, is set and cleared with the session. It isn't `HttpOnly`, so public pages
+  can see it, but it grants nothing; it only tells them to load the admin bar (§5).
 - **CSRF**: `SameSite=Lax` plus a per-session token in forms and htmx headers,
   checked on every state-changing request. The OAuth `state` parameter is a signed, short-lived cookie.
 - **Webhook**: constant-time HMAC check of `X-Hub-Signature-256`. Pushes to other branches are ignored.

@@ -68,6 +68,8 @@
       <small class="muted">Add themes as folders under <code>themes/</code> in the repo, with an optional <code>theme.yaml</code> and <code>screenshot.png</code>.
       {{if .Res.Renderer.Theme.Customized}}This site also has overrides in <code>theme/</code>, applied on top of the selected theme.{{end}}</small>
     </div>
+    <label class="check"><input type="checkbox" name="admin_bar" {{if $c.AdminBar}}checked{{end}}> Admin bar on the site</label>
+    <small class="muted">Signed-in users get a small floating bar on public pages, with a link to edit the page they're on. Visitors never see or download it.</small>
   </fieldset>
 
   <label>Commit message <input name="message" placeholder="Optional"></label>

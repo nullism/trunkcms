@@ -26,6 +26,16 @@ type Result struct {
 // Run loads and renders a snapshot into objs. A nil objs validates the
 // snapshot (every page is rendered) without writing anything.
 func Run(sha string, snapshot fs.FS, objs *render.Objects, now time.Time) (*Result, error) {
+	return run(sha, snapshot, objs, now, true)
+}
+
+// Export renders a snapshot for static hosting: like Run, but without the
+// admin bar, since nothing serves /admin there.
+func Export(sha string, snapshot fs.FS, objs *render.Objects, now time.Time) (*Result, error) {
+	return run(sha, snapshot, objs, now, false)
+}
+
+func run(sha string, snapshot fs.FS, objs *render.Objects, now time.Time, server bool) (*Result, error) {
 	start := time.Now()
 	site, err := content.Load(snapshot, now)
 	if err != nil {
@@ -39,6 +49,7 @@ func Run(sha string, snapshot fs.FS, objs *render.Objects, now time.Time) (*Resu
 	if err != nil {
 		return nil, err
 	}
+	r.AdminBar = r.AdminBar && server
 	out, err := r.Build(snapshot, objs)
 	if err != nil {
 		return nil, err

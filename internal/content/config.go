@@ -43,6 +43,9 @@ type Config struct {
 		UnsafeHTML bool `yaml:"unsafe_html,omitempty"` // raw HTML in posts and author profiles; pages always allow it
 	} `yaml:"markdown,omitempty"`
 	Search Search `yaml:"search"`
+	// AdminBar adds a floating edit bar to public pages for signed-in editors.
+	// No omitempty: false has to be written out, since the default is on.
+	AdminBar bool `yaml:"admin_bar"`
 	// Extra keeps keys this version doesn't know about (e.g. for custom themes),
 	// so saving settings from the UI never drops them.
 	Extra map[string]any `yaml:",inline"`
@@ -73,6 +76,7 @@ func DefaultConfig() Config {
 	c.Feeds.Atom = true
 	c.Search.Pages = true
 	c.Search.TitleBoost = DefaultTitleBoost
+	c.AdminBar = true
 	return c
 }
 

@@ -16,7 +16,11 @@ import (
 const (
 	cookieName = "trunkcms_session"
 	stateName  = "trunkcms_oauth"
-	TTL        = 7 * 24 * time.Hour
+	// hintName is a readable, non-secret cookie that tells public pages a
+	// session probably exists, so only editors load the admin bar. It grants
+	// nothing. render.AdminBarLoader checks for it by name.
+	hintName = "trunkcms_editor"
+	TTL      = 7 * 24 * time.Hour
 )
 
 type Session struct {
@@ -107,7 +111,21 @@ func (m *Manager) Start(w http.ResponseWriter, login string, id int64, name stri
 		return err
 	}
 	http.SetCookie(w, m.cookie(cookieName, v, TTL))
+	m.SetHint(w, &s)
 	return nil
+}
+
+// SetHint sets the editor hint cookie to expire with s.
+func (m *Manager) SetHint(w http.ResponseWriter, s *Session) {
+	c := m.cookie(hintName, "1", time.Until(time.Unix(s.Expires, 0)))
+	c.HttpOnly = false
+	http.SetCookie(w, c)
+}
+
+// HasHint reports whether the request carries the editor hint cookie.
+func HasHint(r *http.Request) bool {
+	_, err := r.Cookie(hintName)
+	return err == nil
 }
 
 // Get returns the request's session, or nil.
@@ -125,6 +143,13 @@ func (m *Manager) Get(r *http.Request) *Session {
 
 func (m *Manager) Clear(w http.ResponseWriter) {
 	http.SetCookie(w, m.cookie(cookieName, "", -time.Second))
+	m.ClearHint(w)
+}
+
+func (m *Manager) ClearHint(w http.ResponseWriter) {
+	c := m.cookie(hintName, "", -time.Second)
+	c.HttpOnly = false
+	http.SetCookie(w, c)
 }
 
 // BeginOAuth stores a short-lived OAuth state and returns it.

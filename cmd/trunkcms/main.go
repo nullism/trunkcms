@@ -188,7 +188,7 @@ func buildStatic(args []string) error {
 	if err != nil {
 		return err
 	}
-	res, err := build.Run("local", os.DirFS(*dir), objs, time.Now())
+	res, err := build.Export("local", os.DirFS(*dir), objs, time.Now())
 	if err != nil {
 		return err
 	}

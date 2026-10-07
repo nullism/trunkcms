@@ -112,6 +112,15 @@ expect roughly 150–300 KB gzipped for 300 posts. See [docs/DESIGN.md](docs/DES
 for stopwords, `keep`, `min_kw_length`, and `title_boost` (how strongly title matches
 outrank body text).
 
+### Admin bar
+
+When you're signed in, public pages show a small floating bar with **Edit** for the page
+you're on (if your role allows it), **New post**, the dashboard, and sign out. It can be
+collapsed. Visitors never download it: built pages carry a one-line loader that only fetches
+the bar when a `trunkcms_editor` hint cookie is present, and the bar asks the server before it
+shows anything. Turn it off with `admin_bar: false` in `site.yaml`, or untick **Admin bar on
+the site** in Settings. Static exports (`trunkcms build`) never include it.
+
 ### Several sites in one repo
 
 Set `TRUNKCMS_REPO_PATH` to serve a subdirectory. For a repo with `blog1/` and `blog2/`,

@@ -69,6 +69,7 @@ func New(o Options) (*Handler, error) {
 	h.mux.HandleFunc("GET /admin/callback", h.callback)
 	h.mux.HandleFunc("POST /admin/logout", h.logout)
 	h.mux.HandleFunc("POST /admin/webhook", h.webhook)
+	h.mux.HandleFunc("GET /admin/bar", h.bar)
 
 	h.mux.HandleFunc("GET /admin/{$}", h.authed(h.dashboard))
 	h.mux.HandleFunc("GET /admin", func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/admin/", http.StatusFound) })
@@ -207,6 +208,9 @@ func (h *Handler) authed(fn func(*req)) http.HandlerFunc {
 		if u == nil {
 			http.Redirect(w, r, "/admin/login?next="+url.QueryEscape(r.URL.RequestURI()), http.StatusFound)
 			return
+		}
+		if !session.HasHint(r) {
+			h.Sessions.SetHint(w, s) // sessions from before the admin bar existed
 		}
 		if u.Role == policy.RoleNone {
 			h.message(w, http.StatusForbidden, nil, "No access",

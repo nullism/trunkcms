@@ -118,6 +118,7 @@ func (h *Handler) saveSettings(c *req) {
 	cfg.Feeds.Atom = r.FormValue("atom") == "on"
 	cfg.Theme.Name = r.FormValue("theme")
 	cfg.Markdown.UnsafeHTML = r.FormValue("unsafe_html") == "on"
+	cfg.AdminBar = r.FormValue("admin_bar") == "on"
 	cfg.Search.Enabled = r.FormValue("search") == "on"
 	cfg.Search.Pages = r.FormValue("search_pages") == "on"
 	cfg.Search.Stopwords = parseWords(r.FormValue("search_stopwords"))
